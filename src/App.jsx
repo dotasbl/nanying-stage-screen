@@ -12,7 +12,10 @@ const DEFAULT_VISUAL_MODE = "staff";
 const DEFAULT_QUALITY_MODE = "low";
 const DEFAULT_STYLE_MODE = "stage";
 const DEFAULT_ORGANIZER_SIZE = "small";
-const APP_VERSION_LABEL = "v2026.05.11.6";
+const APP_VERSION_LABEL = "v2026.05.11.7";
+const AUDIO_ANALYSER_SMOOTHING = 0.48;
+const WAVE_ATTACK_SMOOTHING = 0.68;
+const WAVE_RELEASE_SMOOTHING = 0.24;
 const QUALITY_OPTIONS = [
   {
     id: "low",
@@ -2138,7 +2141,12 @@ export default function App() {
         const idleTarget =
           0.16 + Math.pow((Math.sin(phase) + 1) / 2, 1.35) * 0.84;
         const target = isListening ? targets[index] : idleTarget;
-        const smoothing = isListening ? 0.34 : 0.12;
+        const difference = target - levels[index];
+        const smoothing = isListening
+          ? difference > 0
+            ? WAVE_ATTACK_SMOOTHING
+            : WAVE_RELEASE_SMOOTHING
+          : 0.12;
         levels[index] += (target - levels[index]) * smoothing;
         const rawNormalized = isListening
           ? Math.min(1, Math.max(0.06, levels[index] / 2.05))
@@ -2205,8 +2213,12 @@ export default function App() {
       const source = audioContext.createMediaStreamSource(stream);
 
       analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.76;
+      analyser.smoothingTimeConstant = AUDIO_ANALYSER_SMOOTHING;
       source.connect(analyser);
+
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
 
       audioContextRef.current = audioContext;
       mediaStreamRef.current = stream;
@@ -2214,7 +2226,7 @@ export default function App() {
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-      let lastAudioFrameTime = 0;
+      let lastAudioFrameTime = Number.NEGATIVE_INFINITY;
 
       setIsListening(true);
       setErrorMessage("");
@@ -2267,7 +2279,7 @@ export default function App() {
         setTitleEnergy(titleEnergy.toFixed(3));
       };
 
-      renderFrame();
+      renderFrame(performance.now());
     } catch (error) {
       console.error("無法存取麥克風: ", error);
       stopMicrophone();
