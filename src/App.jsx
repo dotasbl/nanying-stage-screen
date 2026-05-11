@@ -12,6 +12,7 @@ const DEFAULT_VISUAL_MODE = "staff";
 const DEFAULT_QUALITY_MODE = "low";
 const DEFAULT_STYLE_MODE = "stage";
 const DEFAULT_ORGANIZER_SIZE = "small";
+const APP_VERSION_LABEL = "v2026.05.11.1";
 const QUALITY_OPTIONS = [
   {
     id: "low",
@@ -78,7 +79,7 @@ const THEME_OPTIONS = [
       "--beam-shadow-rgb": "180, 58, 49",
       "--trophy-halo": "rgba(250, 204, 21, 0.34)",
       "--title-gradient":
-        "linear-gradient(100deg, #9b6b22 0%, #f7d77b 18%, #fff7ce 34%, #d59a2d 52%, #f9e6a0 70%, #8d5a1c 100%)",
+        "linear-gradient(100deg, #f7d77b 0%, #fff7ce 16%, #d59a2d 32%, #fff4bf 50%, #f7d77b 66%, #b97924 82%, #f7d77b 100%)",
       "--wave-cool-gradient":
         "linear-gradient(to top, rgba(180, 83, 34, 0.52), rgba(245, 197, 79, 0.78))",
       "--wave-hot-gradient":
@@ -110,7 +111,7 @@ const THEME_OPTIONS = [
       "--beam-shadow-rgb": "29, 78, 216",
       "--trophy-halo": "rgba(125, 211, 252, 0.36)",
       "--title-gradient":
-        "linear-gradient(100deg, #bfdbfe 0%, #fde68a 24%, #f8fafc 42%, #60a5fa 60%, #facc15 78%, #1d4ed8 100%)",
+        "linear-gradient(100deg, #bfdbfe 0%, #fde68a 18%, #f8fafc 36%, #60a5fa 54%, #facc15 72%, #bfdbfe 100%)",
       "--wave-cool-gradient":
         "linear-gradient(to top, rgba(30, 64, 175, 0.54), rgba(125, 211, 252, 0.78))",
       "--wave-hot-gradient":
@@ -142,7 +143,7 @@ const THEME_OPTIONS = [
       "--beam-shadow-rgb": "157, 23, 77",
       "--trophy-halo": "rgba(251, 113, 133, 0.34)",
       "--title-gradient":
-        "linear-gradient(100deg, #fecdd3 0%, #fbbf24 22%, #fff7ed 40%, #fb7185 58%, #fde68a 76%, #9f1239 100%)",
+        "linear-gradient(100deg, #fecdd3 0%, #fbbf24 18%, #fff7ed 36%, #fb7185 54%, #fde68a 72%, #fecdd3 100%)",
       "--wave-cool-gradient":
         "linear-gradient(to top, rgba(136, 19, 55, 0.54), rgba(251, 113, 133, 0.78))",
       "--wave-hot-gradient":
@@ -206,7 +207,8 @@ const customStyles = `
   }
 
   @keyframes gold-shine {
-    to { background-position: 220% center; }
+    0% { background-position: 0% center; }
+    100% { background-position: 100% center; }
   }
 
   @keyframes title-rise {
@@ -261,7 +263,7 @@ const customStyles = `
     --accent-deep-rgb: 180, 83, 34;
     --beam-shadow-rgb: 180, 58, 49;
     --trophy-halo: rgba(250, 204, 21, 0.34);
-    --title-gradient: linear-gradient(100deg, #9b6b22 0%, #f7d77b 18%, #fff7ce 34%, #d59a2d 52%, #f9e6a0 70%, #8d5a1c 100%);
+    --title-gradient: linear-gradient(100deg, #f7d77b 0%, #fff7ce 16%, #d59a2d 32%, #fff4bf 50%, #f7d77b 66%, #b97924 82%, #f7d77b 100%);
     --wave-cool-gradient: linear-gradient(to top, rgba(180, 83, 34, 0.52), rgba(245, 197, 79, 0.78));
     --wave-hot-gradient: linear-gradient(to top, rgba(224, 79, 49, 0.92), rgba(255, 248, 197, 1));
     --wave-cool-shadow: 0 0 8px rgba(245, 158, 11, 0.28);
@@ -697,6 +699,16 @@ const customStyles = `
     border-top: 1px solid rgba(255, 255, 255, 0.09);
   }
 
+  .settings-version {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.38);
+    font-size: clamp(10px, 0.66vw, 12px);
+    letter-spacing: 0.08em;
+    text-align: right;
+  }
+
   .settings-button-row {
     display: flex;
     align-items: center;
@@ -867,12 +879,27 @@ const customStyles = `
 
   .gold-title {
     background: var(--title-gradient);
-    background-size: 220% auto;
+    background-size: 260% auto;
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
     -webkit-text-fill-color: transparent;
-    animation: gold-shine 5.5s linear infinite, title-rise 980ms cubic-bezier(.2,.84,.25,1) both;
+    animation: gold-shine 7s ease-in-out infinite alternate, title-rise 980ms cubic-bezier(.2,.84,.25,1) both;
+  }
+
+  .lower-info-zone {
+    position: relative;
+    width: 100%;
+    height: clamp(104px, 13vw, 250px);
+    margin-top: 1%;
+  }
+
+  .date-pill-content {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: clamp(34px, 3.8vw, 78px);
+    transform: translateX(-50%);
   }
 
   .title-rise {
@@ -914,18 +941,32 @@ const customStyles = `
 
   .organizer-row {
     --organizer-scale: 1;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    min-height: clamp(48px, 7vh, 120px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .organizer-content {
     display: flex;
     flex-flow: row wrap;
     align-items: center;
     justify-content: center;
     gap: clamp(0.9vw, 5vw, calc(5vw / var(--organizer-scale)));
-    width: 100%;
-    margin-top: 1%;
     color: rgb(229, 231, 235);
-    font-size: calc(1.2vw * var(--organizer-scale));
+    font-size: 1.2vw;
     font-weight: 300;
     letter-spacing: 0.1em;
-    text-align: center;
+    transform: scale(var(--organizer-scale));
+    transform-origin: center;
+    transition: transform 180ms ease;
+    will-change: transform;
   }
 
   .organizer-item {
@@ -939,7 +980,7 @@ const customStyles = `
 
   .organizer-label {
     color: rgba(var(--accent-rgb), 0.9);
-    font-size: calc(1vw * var(--organizer-scale));
+    font-size: 1vw;
     line-height: 1;
     white-space: nowrap;
   }
@@ -955,7 +996,7 @@ const customStyles = `
 
   .organizer-divider {
     width: 2px;
-    height: clamp(4vh, calc(4vh * var(--organizer-scale)), 8vh);
+    height: 4vh;
     background: rgba(var(--accent-rgb), 0.3);
     flex: 0 0 auto;
   }
@@ -1081,6 +1122,25 @@ function SettingsIcon() {
         strokeWidth="1.45"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function EyeIcon({ hidden = false }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3.6 12s3.1-5.25 8.4-5.25S20.4 12 20.4 12s-3.1 5.25-8.4 5.25S3.6 12 3.6 12Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 9.25a2.75 2.75 0 1 1 0 5.5 2.75 2.75 0 0 1 0-5.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      {hidden && <path className="icon-slash" d="M4.5 4.5 19.5 19.5" />}
     </svg>
   );
 }
@@ -1776,6 +1836,7 @@ export default function App() {
   const [activeOrganizerSizeId, setActiveOrganizerSizeId] = useState(
     DEFAULT_ORGANIZER_SIZE,
   );
+  const [isDateVisible, setIsDateVisible] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const stageRef = useRef(null);
   const waveCanvasRef = useRef(null);
@@ -2425,6 +2486,21 @@ export default function App() {
 
               <div className="settings-section">
                 <div className="settings-row">
+                  <span className="settings-label">日期</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsDateVisible((visible) => !visible)}
+                    aria-label={isDateVisible ? "隱藏比賽日期" : "顯示比賽日期"}
+                    title={isDateVisible ? "隱藏比賽日期" : "顯示比賽日期"}
+                    className={`control-icon-button ${isDateVisible ? "is-active" : ""}`}
+                  >
+                    <EyeIcon hidden={!isDateVisible} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
                   <span className="settings-label">聲音</span>
                   <button
                     type="button"
@@ -2442,6 +2518,8 @@ export default function App() {
                   </span>
                 )}
               </div>
+
+              <div className="settings-version">版本 {APP_VERSION_LABEL}</div>
             </div>
           )}
         </div>
@@ -2475,39 +2553,45 @@ export default function App() {
             <div className="absolute left-1/2 top-1/2 h-[0.8vw] w-[0.8vw] -translate-x-1/2 -translate-y-1/2 rotate-45 border border-yellow-100/80 bg-yellow-300/70 shadow-[0_0_24px_rgba(250,204,21,0.92)]" />
           </div>
 
-          <div
-            data-testid="date-pill"
-            className="mt-[1%] mb-[4%] relative group cursor-default"
-          >
-            <div className="absolute inset-0 bg-yellow-500/30 blur-[20px] rounded-full" />
-            <div className="relative px-[3vw] py-[1%] border border-yellow-400/40 rounded-full bg-black/80 backdrop-blur-md flex items-center justify-center gap-[1.5vw] shadow-[inset_0_0_15px_rgba(234,179,8,0.15)]">
-              <span className="text-yellow-400/70 tracking-[0.4em] text-[0.9vw] uppercase whitespace-nowrap">
-                比賽日期
-              </span>
-              <span className="text-[1.6vw] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 tracking-[0.1em] whitespace-nowrap">
-                115年5月12日
-              </span>
-            </div>
-          </div>
+          <div className="lower-info-zone">
+            {isDateVisible && (
+              <div
+                data-testid="date-pill"
+                className="date-pill-content inline-flex items-center justify-center"
+              >
+                <div className="absolute inset-0 bg-yellow-500/30 blur-[20px] rounded-full" />
+                <div className="relative h-full px-[3vw] border border-yellow-400/40 rounded-full bg-black/80 backdrop-blur-md flex items-center justify-center gap-[1.5vw] shadow-[inset_0_0_15px_rgba(234,179,8,0.15)]">
+                  <span className="text-yellow-400/70 tracking-[0.4em] text-[0.9vw] uppercase whitespace-nowrap">
+                    比賽日期
+                  </span>
+                  <span className="text-[1.6vw] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 tracking-[0.1em] whitespace-nowrap">
+                    115年5月12日
+                  </span>
+                </div>
+              </div>
+            )}
 
-          <div
-            data-testid="organizer-row"
-            className="organizer-row"
-            style={{ "--organizer-scale": activeOrganizerSize.scale }}
-          >
-            <div className="organizer-item">
-              <span className="organizer-label">主辦單位</span>
-              <span className="organizer-name">臺南市議會</span>
-            </div>
-            <div className="organizer-divider" />
-            <div className="organizer-item">
-              <span className="organizer-label">承辦單位</span>
-              <span className="organizer-name">臺南市南瀛婦女成長協會</span>
-            </div>
-            <div className="organizer-divider" />
-            <div className="organizer-item">
-              <span className="organizer-label">協辦單位</span>
-              <span className="organizer-name">沈家鳳議員服務處</span>
+            <div
+              data-testid="organizer-row"
+              className="organizer-row"
+              style={{ "--organizer-scale": activeOrganizerSize.scale }}
+            >
+              <div className="organizer-content">
+                <div className="organizer-item">
+                  <span className="organizer-label">主辦單位</span>
+                  <span className="organizer-name">臺南市議會</span>
+                </div>
+                <div className="organizer-divider" />
+                <div className="organizer-item">
+                  <span className="organizer-label">承辦單位</span>
+                  <span className="organizer-name">臺南市南瀛婦女成長協會</span>
+                </div>
+                <div className="organizer-divider" />
+                <div className="organizer-item">
+                  <span className="organizer-label">協辦單位</span>
+                  <span className="organizer-name">沈家鳳議員服務處</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
