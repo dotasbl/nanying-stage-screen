@@ -27,7 +27,7 @@ const QUALITY_OPTIONS = [
     id: "high",
     name: "高畫質",
     shortName: "高",
-    waveBarCount: 240,
+    waveBarCount: 180,
     floatingScoreCount: 34,
     threeRenderFps: 60,
     audioReactionFps: 60,
@@ -52,8 +52,8 @@ const STYLE_OPTIONS = [
 ];
 const ORGANIZER_SIZE_OPTIONS = [
   { id: "small", name: "小", scale: 1 },
-  { id: "medium", name: "中", scale: 2 },
-  { id: "large", name: "大", scale: 3 },
+  { id: "medium", name: "中", scale: 1.2 },
+  { id: "large", name: "大", scale: 1.5 },
 ];
 const THEME_OPTIONS = [
   {
