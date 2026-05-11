@@ -8,8 +8,36 @@ import React, {
 import * as THREE from "three";
 
 const NOTE_SYMBOLS = ["♪", "♫", "♬", "✦", "115", "南瀛"];
-const WAVE_BAR_COUNT = 120;
-const WAVE_PAIR_COUNT = WAVE_BAR_COUNT / 2;
+const DEFAULT_VISUAL_MODE = "staff";
+const DEFAULT_QUALITY_MODE = "low";
+const QUALITY_OPTIONS = [
+  {
+    id: "low",
+    name: "低畫質",
+    shortName: "低",
+    waveBarCount: 72,
+    floatingScoreCount: 22,
+    threeRenderFps: 24,
+    audioReactionFps: 30,
+    maxThreePixelRatio: 1.25,
+  },
+  {
+    id: "high",
+    name: "高畫質",
+    shortName: "高",
+    waveBarCount: 120,
+    floatingScoreCount: 34,
+    threeRenderFps: 60,
+    audioReactionFps: 60,
+    maxThreePixelRatio: 2,
+  },
+];
+const MAX_WAVE_BAR_COUNT = Math.max(
+  ...QUALITY_OPTIONS.map((quality) => quality.waveBarCount),
+);
+const MAX_FLOATING_SCORE_COUNT = Math.max(
+  ...QUALITY_OPTIONS.map((quality) => quality.floatingScoreCount),
+);
 const VISUAL_OPTIONS = [
   { id: "trophy", name: "獎盃", icon: "cup" },
   { id: "staff", name: "五線譜", icon: "staff" },
@@ -586,6 +614,30 @@ const customStyles = `
     height: 58%;
   }
 
+  .quality-mode-button {
+    min-width: clamp(38px, 2.8vw, 54px);
+    height: clamp(30px, 2vw, 42px);
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    padding: 0 10px;
+    color: rgba(var(--accent-hot-rgb), 0.74);
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: clamp(12px, 0.82vw, 15px);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+  }
+
+  .quality-mode-button:hover,
+  .quality-mode-button.is-active {
+    transform: translateY(-1px);
+    color: rgb(var(--accent-hot-rgb));
+    background: rgba(var(--accent-rgb), 0.14);
+    border-color: rgba(var(--accent-rgb), 0.54);
+  }
+
   .control-icon-button {
     width: clamp(34px, 2.2vw, 46px);
     height: clamp(34px, 2.2vw, 46px);
@@ -685,7 +737,7 @@ const customStyles = `
 `;
 
 function createFloatingScores() {
-  return Array.from({ length: 34 }).map((_, index) => ({
+  return Array.from({ length: MAX_FLOATING_SCORE_COUNT }).map((_, index) => ({
     id: index,
     symbol: NOTE_SYMBOLS[Math.floor(Math.random() * NOTE_SYMBOLS.length)],
     left: `${Math.random() * 100}%`,
@@ -697,7 +749,7 @@ function createFloatingScores() {
 }
 
 function createWaveBars() {
-  return Array.from({ length: WAVE_BAR_COUNT }).map((_, index) => ({
+  return Array.from({ length: MAX_WAVE_BAR_COUNT }).map((_, index) => ({
     id: index,
     delay: `${Math.random() * 1.35}s`,
     duration: `${0.55 + Math.random() * 0.95}s`,
@@ -1206,7 +1258,7 @@ function createMicrophoneMesh(theme, energyRef, side) {
   return group;
 }
 
-function TrophyScene({ side, theme, energyRef }) {
+function TrophyScene({ side, theme, energyRef, quality }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -1234,7 +1286,9 @@ function TrophyScene({ side, theme, energyRef }) {
     }
 
     renderer.setClearColor(0x000000, 0);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio || 1, quality.maxThreePixelRatio),
+    );
     mount.appendChild(renderer.domElement);
     mount.classList.add("has-webgl");
 
@@ -1262,11 +1316,17 @@ function TrophyScene({ side, theme, energyRef }) {
     resize();
 
     const clock = new THREE.Clock();
-    const render = () => {
+    const minFrameDuration = 1000 / quality.threeRenderFps;
+    let lastRenderTime = 0;
+    const render = (frameTime = 0) => {
+      frameId = requestAnimationFrame(render);
+      if (frameTime - lastRenderTime < minFrameDuration) {
+        return;
+      }
+      lastRenderTime = frameTime;
       const time = clock.getElapsedTime();
       trophy.userData.animate(time);
       renderer.render(scene, camera);
-      frameId = requestAnimationFrame(render);
     };
     render();
 
@@ -1290,7 +1350,7 @@ function TrophyScene({ side, theme, energyRef }) {
       }
       mount.classList.remove("has-webgl");
     };
-  }, [energyRef, side, theme]);
+  }, [energyRef, quality, side, theme]);
 
   return (
     <div
@@ -1305,7 +1365,7 @@ function TrophyScene({ side, theme, energyRef }) {
   );
 }
 
-function MicrophoneScene({ side, theme, energyRef }) {
+function MicrophoneScene({ side, theme, energyRef, quality }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -1333,7 +1393,9 @@ function MicrophoneScene({ side, theme, energyRef }) {
     }
 
     renderer.setClearColor(0x000000, 0);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio || 1, quality.maxThreePixelRatio),
+    );
     mount.appendChild(renderer.domElement);
     mount.classList.add("has-webgl");
 
@@ -1361,11 +1423,17 @@ function MicrophoneScene({ side, theme, energyRef }) {
     resize();
 
     const clock = new THREE.Clock();
-    const render = () => {
+    const minFrameDuration = 1000 / quality.threeRenderFps;
+    let lastRenderTime = 0;
+    const render = (frameTime = 0) => {
+      frameId = requestAnimationFrame(render);
+      if (frameTime - lastRenderTime < minFrameDuration) {
+        return;
+      }
+      lastRenderTime = frameTime;
       const time = clock.getElapsedTime();
       microphone.userData.animate(time);
       renderer.render(scene, camera);
-      frameId = requestAnimationFrame(render);
     };
     render();
 
@@ -1389,7 +1457,7 @@ function MicrophoneScene({ side, theme, energyRef }) {
       }
       mount.classList.remove("has-webgl");
     };
-  }, [energyRef, side, theme]);
+  }, [energyRef, quality, side, theme]);
 
   return (
     <div
@@ -1432,13 +1500,13 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [activeThemeId, setActiveThemeId] = useState(THEME_OPTIONS[0].id);
-  const [activeVisualMode, setActiveVisualMode] = useState(
-    VISUAL_OPTIONS[0].id,
-  );
+  const [activeVisualMode, setActiveVisualMode] = useState(DEFAULT_VISUAL_MODE);
+  const [activeQualityId, setActiveQualityId] = useState(DEFAULT_QUALITY_MODE);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const stageRef = useRef(null);
   const waveRefs = useRef([]);
   const soundEnergyRef = useRef(0);
+  const qualityRef = useRef(QUALITY_OPTIONS[0]);
   const animationRef = useRef(null);
   const audioContextRef = useRef(null);
   const mediaStreamRef = useRef(null);
@@ -1450,8 +1518,22 @@ export default function App() {
       THEME_OPTIONS[0],
     [activeThemeId],
   );
+  const activeQuality = useMemo(
+    () =>
+      QUALITY_OPTIONS.find((quality) => quality.id === activeQualityId) ||
+      QUALITY_OPTIONS[0],
+    [activeQualityId],
+  );
   const floatingScores = useMemo(() => createFloatingScores(), []);
   const waves = useMemo(() => createWaveBars(), []);
+  const visibleFloatingScores = useMemo(
+    () => floatingScores.slice(0, activeQuality.floatingScoreCount),
+    [activeQuality.floatingScoreCount, floatingScores],
+  );
+  const visibleWaves = useMemo(
+    () => waves.slice(0, activeQuality.waveBarCount),
+    [activeQuality.waveBarCount, waves],
+  );
   const lightBeams = useMemo(() => createLightBeams(), []);
   const energyRings = useMemo(() => createEnergyRings(), []);
   const floorLines = useMemo(() => createFloorLines(), []);
@@ -1500,6 +1582,11 @@ export default function App() {
     return () => stopMicrophone();
   }, [stopMicrophone]);
 
+  useEffect(() => {
+    qualityRef.current = activeQuality;
+    waveRefs.current = waveRefs.current.slice(0, activeQuality.waveBarCount);
+  }, [activeQuality]);
+
   const startMicrophone = async () => {
     if (isListening) {
       return;
@@ -1527,17 +1614,26 @@ export default function App() {
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
+      let lastAudioFrameTime = 0;
 
       setIsListening(true);
       setErrorMessage("");
 
-      const renderFrame = () => {
+      const renderFrame = (frameTime = 0) => {
         animationRef.current = requestAnimationFrame(renderFrame);
+        const currentQuality = qualityRef.current;
+        const minAudioFrameDuration = 1000 / currentQuality.audioReactionFps;
+        if (frameTime - lastAudioFrameTime < minAudioFrameDuration) {
+          return;
+        }
+        lastAudioFrameTime = frameTime;
         analyser.getByteFrequencyData(dataArray);
 
         let total = 0;
         let bassTotal = 0;
-        for (let i = 0; i < WAVE_PAIR_COUNT; i += 1) {
+        const activeWaveBarCount = currentQuality.waveBarCount;
+        const activeWavePairCount = activeWaveBarCount / 2;
+        for (let i = 0; i < activeWavePairCount; i += 1) {
           const value = dataArray[i] || 0;
           total += value;
           if (i < 9) {
@@ -1546,10 +1642,10 @@ export default function App() {
           const scale = 0.12 + (value / 255) * 1.95;
 
           updateWaveBar(i, scale, value);
-          updateWaveBar(WAVE_BAR_COUNT - 1 - i, scale, value);
+          updateWaveBar(activeWaveBarCount - 1 - i, scale, value);
         }
 
-        const energy = Math.min(1, total / (WAVE_PAIR_COUNT * 210));
+        const energy = Math.min(1, total / (activeWavePairCount * 210));
         const bassEnergy = Math.min(1, bassTotal / (9 * 190));
         setSoundEnergy(energy.toFixed(3));
         setBassEnergy(bassEnergy.toFixed(3));
@@ -1660,11 +1756,13 @@ export default function App() {
               side="left"
               theme={activeTheme}
               energyRef={soundEnergyRef}
+              quality={activeQuality}
             />
             <TrophyScene
               side="right"
               theme={activeTheme}
               energyRef={soundEnergyRef}
+              quality={activeQuality}
             />
           </>
         )}
@@ -1680,11 +1778,13 @@ export default function App() {
               side="left"
               theme={activeTheme}
               energyRef={soundEnergyRef}
+              quality={activeQuality}
             />
             <MicrophoneScene
               side="right"
               theme={activeTheme}
               energyRef={soundEnergyRef}
+              quality={activeQuality}
             />
           </>
         )}
@@ -1747,7 +1847,7 @@ export default function App() {
         </div>
 
         {mounted &&
-          floatingScores.map((item) => (
+          visibleFloatingScores.map((item) => (
             <div
               key={item.id}
               className="floating-score absolute z-[2] font-semibold tracking-[0.12em] pointer-events-none"
@@ -1822,6 +1922,29 @@ export default function App() {
                           className="theme-swatch"
                           style={{ background: theme.swatch }}
                         />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
+                  <span className="settings-label">畫質</span>
+                  <div
+                    className="settings-button-row"
+                    data-testid="stage-quality-mode"
+                  >
+                    {QUALITY_OPTIONS.map((quality) => (
+                      <button
+                        key={quality.id}
+                        type="button"
+                        aria-label={`切換至${quality.name}`}
+                        title={quality.name}
+                        onClick={() => setActiveQualityId(quality.id)}
+                        className={`quality-mode-button ${quality.id === activeQuality.id ? "is-active" : ""}`}
+                      >
+                        {quality.shortName}
                       </button>
                     ))}
                   </div>
@@ -1922,7 +2045,7 @@ export default function App() {
 
         <div className="absolute bottom-0 left-0 w-full h-[28%] flex items-end justify-center gap-[3px] px-5 z-10 opacity-[0.94]">
           {mounted &&
-            waves.map((wave, index) => (
+            visibleWaves.map((wave, index) => (
               <div
                 key={wave.id}
                 data-testid="wave-bar"
