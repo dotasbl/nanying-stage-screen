@@ -6,6 +6,12 @@ import React, {
   useState,
 } from "react";
 import * as THREE from "three";
+import {
+  AUDIO_DETECTION_OPTIONS,
+  applyAudioDetectionPreset,
+  createFrequencyBarPlan,
+  mapFrequencyDataToBars,
+} from "./audioVisualizer.js";
 
 const NOTE_SYMBOLS = ["♪", "♫", "♬", "✦", "婦女", "南瀛"];
 const DEFAULT_VISUAL_MODE = "staff";
@@ -17,9 +23,8 @@ const DEFAULT_THREE_RENDER_FPS = "low";
 const DEFAULT_AUDIO_REACTION_FPS = "low";
 const DEFAULT_THREE_PIXEL_RATIO = "low";
 const DEFAULT_TITLE_EFFECT_MODE = "standard";
-const APP_VERSION_LABEL = "v2026.05.12.14";
-const WAVE_ATTACK_SMOOTHING = 0.68;
-const WAVE_RELEASE_SMOOTHING = 0.24;
+const APP_VERSION_LABEL = "v2026.05.12.16";
+const ENERGY_STYLE_UPDATE_EPSILON = 0.006;
 const FLOATING_DENSITY_OPTIONS = [
   { id: "low", name: "22", value: 22 },
   { id: "medium", name: "34", value: 34 },
@@ -42,22 +47,6 @@ const TITLE_EFFECT_OPTIONS = [
   { id: "off", name: "關閉", shortName: "關" },
   { id: "standard", name: "標準", shortName: "標" },
   { id: "impact", name: "震撼", shortName: "震" },
-];
-const AUDIO_DETECTION_OPTIONS = [
-  {
-    id: "dynamic",
-    name: "動感",
-    shortName: "動",
-    fftSize: 256,
-    smoothingTimeConstant: 0.48,
-  },
-  {
-    id: "classic",
-    name: "經典",
-    shortName: "經",
-    fftSize: 2048,
-    smoothingTimeConstant: 0.8,
-  },
 ];
 const WAVE_BAR_OPTIONS = [
   { id: "80", name: "80", value: 80 },
@@ -2598,11 +2587,17 @@ export default function App() {
   const waveLevelsRef = useRef(new Float32Array(MAX_WAVE_BAR_COUNT));
   const waveFrameRef = useRef(null);
   const soundEnergyRef = useRef(0);
+  const stageEnergyStyleRef = useRef({
+    bass: Number.NaN,
+    sound: Number.NaN,
+    title: Number.NaN,
+  });
   const audioReactionFpsRef = useRef(AUDIO_REACTION_FPS_OPTIONS[0].value);
   const waveBarCountRef = useRef(DEFAULT_WAVE_BAR_COUNT);
   const animationRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
+  const audioDetectionPresetRef = useRef(AUDIO_DETECTION_OPTIONS[0]);
   const mediaStreamRef = useRef(null);
   const sourceRef = useRef(null);
 
@@ -2696,24 +2691,53 @@ export default function App() {
   const floorLines = useMemo(() => createFloorLines(), []);
   const particles = useMemo(() => createParticles(), []);
 
-  const setSoundEnergy = useCallback((energy) => {
-    soundEnergyRef.current = Number(energy) || 0;
-    if (stageRef.current) {
-      stageRef.current.style.setProperty("--sound-energy", String(energy));
-    }
-  }, []);
+  const setStageEnergyProperty = useCallback(
+    (key, propertyName, energy, force = false) => {
+      const numericEnergy = Number(energy) || 0;
+      const previousEnergy = stageEnergyStyleRef.current[key];
+      if (
+        stageRef.current &&
+        (force ||
+          !Number.isFinite(previousEnergy) ||
+          Math.abs(previousEnergy - numericEnergy) >=
+            ENERGY_STYLE_UPDATE_EPSILON)
+      ) {
+        stageRef.current.style.setProperty(
+          propertyName,
+          String(Math.round(numericEnergy * 1000) / 1000),
+        );
+        stageEnergyStyleRef.current[key] = numericEnergy;
+      }
+      return numericEnergy;
+    },
+    [],
+  );
 
-  const setBassEnergy = useCallback((energy) => {
-    if (stageRef.current) {
-      stageRef.current.style.setProperty("--bass-energy", String(energy));
-    }
-  }, []);
+  const setSoundEnergy = useCallback(
+    (energy, force = false) => {
+      soundEnergyRef.current = setStageEnergyProperty(
+        "sound",
+        "--sound-energy",
+        energy,
+        force,
+      );
+    },
+    [setStageEnergyProperty],
+  );
 
-  const setTitleEnergy = useCallback((energy) => {
-    if (stageRef.current) {
-      stageRef.current.style.setProperty("--title-energy", String(energy));
-    }
-  }, []);
+  const setBassEnergy = useCallback(
+    (energy, force = false) => {
+      setStageEnergyProperty("bass", "--bass-energy", energy, force);
+    },
+    [setStageEnergyProperty],
+  );
+
+  const setTitleEnergy = useCallback(
+    (energy, force = false) => {
+      setStageEnergyProperty("title", "--title-energy", energy, force);
+    },
+    [setStageEnergyProperty],
+  );
 
   const stopMicrophone = useCallback(() => {
     if (animationRef.current) {
@@ -2741,9 +2765,9 @@ export default function App() {
     waveTargetsRef.current.fill(0);
     waveLevelsRef.current.fill(0);
 
-    setSoundEnergy(0);
-    setBassEnergy(0);
-    setTitleEnergy(0);
+    setSoundEnergy(0, true);
+    setBassEnergy(0, true);
+    setTitleEnergy(0, true);
     setIsListening(false);
   }, [setBassEnergy, setSoundEnergy, setTitleEnergy]);
 
@@ -2757,15 +2781,11 @@ export default function App() {
   }, [activeAudioReactionFps.value]);
 
   useEffect(() => {
+    audioDetectionPresetRef.current = activeAudioDetectionMode;
     if (analyserRef.current) {
-      analyserRef.current.fftSize = activeAudioDetectionMode.fftSize;
-      analyserRef.current.smoothingTimeConstant =
-        activeAudioDetectionMode.smoothingTimeConstant;
+      applyAudioDetectionPreset(analyserRef.current, activeAudioDetectionMode);
     }
-  }, [
-    activeAudioDetectionMode.fftSize,
-    activeAudioDetectionMode.smoothingTimeConstant,
-  ]);
+  }, [activeAudioDetectionMode]);
 
   useEffect(() => {
     waveBarCountRef.current = activeWaveBarOption.value;
@@ -2790,6 +2810,7 @@ export default function App() {
     let pixelRatio = 1;
     let accent = "250, 204, 21";
     let accentHot = "255, 247, 198";
+    let barLayout = null;
     let coolGradient = null;
     let hotGradient = null;
 
@@ -2809,6 +2830,26 @@ export default function App() {
       hotGradient.addColorStop(1, `rgba(${accentHot}, 1)`);
     };
 
+    const refreshBarLayout = (count = waveBarCountRef.current) => {
+      const safeCount = Math.max(1, count);
+      const preferredGap = Math.min(5, Math.max(0.6, logicalWidth * 0.0018));
+      const gap = Math.min(preferredGap, (logicalWidth / safeCount) * 0.55);
+      const barWidth = Math.max(
+        0.35,
+        (logicalWidth - gap * (safeCount - 1)) / safeCount,
+      );
+      const xPositions = new Float32Array(safeCount);
+      for (let index = 0; index < safeCount; index += 1) {
+        xPositions[index] = index * (barWidth + gap);
+      }
+      barLayout = {
+        barWidth,
+        count: safeCount,
+        radius: Math.min(5, Math.max(2, logicalWidth * 0.0022)),
+        xPositions,
+      };
+    };
+
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
       logicalWidth = Math.max(1, rect.width);
@@ -2822,6 +2863,7 @@ export default function App() {
       }
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       refreshPaint();
+      refreshBarLayout();
     };
 
     const drawRoundedTopBar = (x, y, width, height, radius) => {
@@ -2842,16 +2884,14 @@ export default function App() {
         resizeCanvas();
       }
       const count = waveBarCountRef.current;
-      const preferredGap = Math.min(5, Math.max(0.6, logicalWidth * 0.0018));
-      const gap = Math.min(preferredGap, (logicalWidth / count) * 0.55);
-      const barWidth = Math.max(
-        0.35,
-        (logicalWidth - gap * (count - 1)) / count,
-      );
-      const radius = Math.min(5, Math.max(2, logicalWidth * 0.0022));
+      if (!barLayout || barLayout.count !== count) {
+        refreshBarLayout(count);
+      }
       const levels = waveLevelsRef.current;
       const targets = waveTargetsRef.current;
       const time = frameTime / 1000;
+      const activePreset = audioDetectionPresetRef.current;
+      const { barWidth, radius, xPositions } = barLayout;
 
       context.clearRect(0, 0, logicalWidth, logicalHeight);
 
@@ -2868,12 +2908,16 @@ export default function App() {
           0.16 + Math.pow((Math.sin(phase) + 1) / 2, 1.35) * 0.84;
         const target = isListening ? targets[index] : idleTarget;
         const difference = target - levels[index];
-        const smoothing = isListening
-          ? difference > 0
-            ? WAVE_ATTACK_SMOOTHING
-            : WAVE_RELEASE_SMOOTHING
-          : 0.12;
-        levels[index] += (target - levels[index]) * smoothing;
+        if (!isListening) {
+          levels[index] += difference * 0.12;
+        } else if (difference > 0) {
+          levels[index] += difference * activePreset.attackSmoothing;
+        } else {
+          levels[index] = Math.max(
+            target,
+            levels[index] * activePreset.releaseDecay,
+          );
+        }
         const rawNormalized = isListening
           ? Math.min(1, Math.max(0.06, levels[index] / 2.05))
           : Math.min(1, Math.max(0.06, levels[index]));
@@ -2884,7 +2928,7 @@ export default function App() {
           continue;
         }
         const height = logicalHeight * normalized;
-        const x = index * (barWidth + gap);
+        const x = xPositions[index];
         const y = logicalHeight - height;
         drawRoundedTopBar(x, y, barWidth, height, radius);
       }
@@ -2898,7 +2942,7 @@ export default function App() {
           ? Math.pow(rawNormalized, 0.84)
           : rawNormalized;
         const height = Math.max(2, logicalHeight * normalized);
-        const x = index * (barWidth + gap);
+        const x = xPositions[index];
         const y = logicalHeight - height;
         context.fillStyle = normalized > 0.68 ? hotGradient : coolGradient;
         drawRoundedTopBar(x, y, barWidth, height, radius);
@@ -2942,9 +2986,7 @@ export default function App() {
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
 
-      analyser.fftSize = activeAudioDetectionMode.fftSize;
-      analyser.smoothingTimeConstant =
-        activeAudioDetectionMode.smoothingTimeConstant;
+      applyAudioDetectionPreset(analyser, activeAudioDetectionMode);
       source.connect(analyser);
 
       if (audioContext.state === "suspended") {
@@ -2963,7 +3005,22 @@ export default function App() {
 
       let bufferLength = analyser.frequencyBinCount;
       let dataArray = new Uint8Array(bufferLength);
+      let audioBarPlan = createFrequencyBarPlan({
+        barCount: waveBarCountRef.current / 2,
+        fftSize: analyser.fftSize,
+        sampleRate: audioContext.sampleRate,
+      });
+      let audioBarBuffer = new Float32Array(audioBarPlan.barCount);
       let lastAudioFrameTime = Number.NEGATIVE_INFINITY;
+
+      const refreshAudioBarPlan = (barCount) => {
+        audioBarPlan = createFrequencyBarPlan({
+          barCount,
+          fftSize: analyser.fftSize,
+          sampleRate: audioContext.sampleRate,
+        });
+        audioBarBuffer = new Float32Array(audioBarPlan.barCount);
+      };
 
       setIsListening(true);
       setErrorMessage("");
@@ -2978,60 +3035,33 @@ export default function App() {
         if (analyser.frequencyBinCount !== bufferLength) {
           bufferLength = analyser.frequencyBinCount;
           dataArray = new Uint8Array(bufferLength);
+          refreshAudioBarPlan(waveBarCountRef.current / 2);
         }
         analyser.getByteFrequencyData(dataArray);
 
-        let total = 0;
-        let bassTotal = 0;
-        let titleTotal = 0;
-        let titleCount = 0;
-        let wavePeak = 0;
-        let waveFloor = 255;
         const activeWaveBarCount = waveBarCountRef.current;
         const activeWavePairCount = activeWaveBarCount / 2;
         const waveTargets = waveTargetsRef.current;
-        for (let i = 0; i < activeWavePairCount; i += 1) {
-          const value = dataArray[i] || 0;
-          total += value;
-          wavePeak = Math.max(wavePeak, value);
-          waveFloor = Math.min(waveFloor, value);
-          if (i < 9) {
-            bassTotal += value;
-          }
+        if (audioBarPlan.barCount !== activeWavePairCount) {
+          refreshAudioBarPlan(activeWavePairCount);
         }
+        const audioBars = mapFrequencyDataToBars(dataArray, {
+          barPlan: audioBarPlan,
+          outputBars: audioBarBuffer,
+          preset: audioDetectionPresetRef.current,
+        });
 
-        const waveCeiling = Math.max(96, Math.min(255, wavePeak * 1.08));
-        const waveSpread = Math.max(1, wavePeak - waveFloor);
         for (let i = 0; i < activeWavePairCount; i += 1) {
-          const value = dataArray[i] || 0;
-          const absolute = Math.pow(Math.min(1, value / waveCeiling), 0.82);
-          const contrast = Math.pow(
-            Math.max(0, (value - waveFloor) / waveSpread),
-            0.72,
-          );
-          const response = Math.min(1, absolute * 0.58 + contrast * 0.42);
+          const response = audioBars.bars[i] || 0;
           const scale = 0.12 + response * 1.95;
 
           waveTargets[i] = scale;
           waveTargets[activeWaveBarCount - 1 - i] = scale;
         }
 
-        const titleStartBin = 12;
-        const titleEndBin = Math.min(bufferLength, 72);
-        for (let i = titleStartBin; i < titleEndBin; i += 1) {
-          titleTotal += dataArray[i] || 0;
-          titleCount += 1;
-        }
-
-        const energy = Math.min(1, total / (activeWavePairCount * 210));
-        const bassEnergy = Math.min(1, bassTotal / (9 * 190));
-        const titleEnergy =
-          titleCount > 0
-            ? Math.min(1, Math.pow(titleTotal / (titleCount * 185), 0.82))
-            : 0;
-        setSoundEnergy(energy.toFixed(3));
-        setBassEnergy(bassEnergy.toFixed(3));
-        setTitleEnergy(titleEnergy.toFixed(3));
+        setSoundEnergy(audioBars.overallEnergy);
+        setBassEnergy(audioBars.bassEnergy);
+        setTitleEnergy(audioBars.titleEnergy);
       };
 
       renderFrame(performance.now());
@@ -3046,12 +3076,7 @@ export default function App() {
         setErrorMessage("無法存取麥克風，請確認瀏覽器已允許權限。");
       }
     }
-  }, [
-    activeAudioDetectionMode.fftSize,
-    activeAudioDetectionMode.smoothingTimeConstant,
-    isListening,
-    stopMicrophone,
-  ]);
+  }, [activeAudioDetectionMode, isListening, stopMicrophone]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => startMicrophone(), 120);
