@@ -12,7 +12,8 @@ const DEFAULT_VISUAL_MODE = "staff";
 const DEFAULT_QUALITY_MODE = "low";
 const DEFAULT_STYLE_MODE = "stage";
 const DEFAULT_ORGANIZER_SIZE = "small";
-const APP_VERSION_LABEL = "v2026.05.11.7";
+const DEFAULT_WAVE_BAR_COUNT = 120;
+const APP_VERSION_LABEL = "v2026.05.11.9";
 const AUDIO_ANALYSER_SMOOTHING = 0.48;
 const WAVE_ATTACK_SMOOTHING = 0.68;
 const WAVE_RELEASE_SMOOTHING = 0.24;
@@ -21,7 +22,6 @@ const QUALITY_OPTIONS = [
     id: "low",
     name: "低畫質",
     shortName: "低",
-    waveBarCount: 120,
     floatingScoreCount: 22,
     threeRenderFps: 24,
     audioReactionFps: 30,
@@ -31,15 +31,19 @@ const QUALITY_OPTIONS = [
     id: "high",
     name: "高畫質",
     shortName: "高",
-    waveBarCount: 180,
     floatingScoreCount: 34,
     threeRenderFps: 60,
     audioReactionFps: 60,
     maxThreePixelRatio: 2,
   },
 ];
+const WAVE_BAR_OPTIONS = [
+  { id: "80", name: "80", value: 80 },
+  { id: "120", name: "120", value: 120 },
+  { id: "160", name: "160", value: 160 },
+];
 const MAX_WAVE_BAR_COUNT = Math.max(
-  ...QUALITY_OPTIONS.map((quality) => quality.waveBarCount),
+  ...WAVE_BAR_OPTIONS.map((option) => option.value),
 );
 const MAX_FLOATING_SCORE_COUNT = Math.max(
   ...QUALITY_OPTIONS.map((quality) => quality.floatingScoreCount),
@@ -964,9 +968,9 @@ const customStyles = `
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: clamp(8px, 0.9vw, 22px);
     width: 100%;
-    min-height: clamp(48px, 7vh, 120px);
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1016,7 +1020,7 @@ const customStyles = `
 
   .organizer-divider {
     width: 2px;
-    height: 4vh;
+    height: clamp(26px, 2.5vw, 72px);
     background: rgba(var(--accent-rgb), 0.3);
     flex: 0 0 auto;
   }
@@ -1097,7 +1101,7 @@ function createWaveBars() {
   return Array.from({ length: MAX_WAVE_BAR_COUNT }).map((_, index) => ({
     id: index,
     delayValue: Math.random() * 1.35,
-    durationValue: 0.55 + Math.random() * 0.95,
+    durationValue: 1.25 + Math.random() * 1.65,
   }));
 }
 
@@ -1932,6 +1936,9 @@ export default function App() {
   const [activeThemeId, setActiveThemeId] = useState(THEME_OPTIONS[0].id);
   const [activeVisualMode, setActiveVisualMode] = useState(DEFAULT_VISUAL_MODE);
   const [activeQualityId, setActiveQualityId] = useState(DEFAULT_QUALITY_MODE);
+  const [activeWaveBarCountId, setActiveWaveBarCountId] = useState(
+    String(DEFAULT_WAVE_BAR_COUNT),
+  );
   const [activeOrganizerSizeId, setActiveOrganizerSizeId] = useState(
     DEFAULT_ORGANIZER_SIZE,
   );
@@ -1945,6 +1952,7 @@ export default function App() {
   const waveFrameRef = useRef(null);
   const soundEnergyRef = useRef(0);
   const qualityRef = useRef(QUALITY_OPTIONS[0]);
+  const waveBarCountRef = useRef(DEFAULT_WAVE_BAR_COUNT);
   const animationRef = useRef(null);
   const audioContextRef = useRef(null);
   const mediaStreamRef = useRef(null);
@@ -1968,6 +1976,12 @@ export default function App() {
       QUALITY_OPTIONS.find((quality) => quality.id === activeQualityId) ||
       QUALITY_OPTIONS[0],
     [activeQualityId],
+  );
+  const activeWaveBarOption = useMemo(
+    () =>
+      WAVE_BAR_OPTIONS.find((option) => option.id === activeWaveBarCountId) ||
+      WAVE_BAR_OPTIONS[1],
+    [activeWaveBarCountId],
   );
   const activeOrganizerSize = useMemo(
     () =>
@@ -2048,6 +2062,12 @@ export default function App() {
   }, [activeQuality]);
 
   useEffect(() => {
+    waveBarCountRef.current = activeWaveBarOption.value;
+    waveTargetsRef.current.fill(0);
+    waveLevelsRef.current.fill(0);
+  }, [activeWaveBarOption.value]);
+
+  useEffect(() => {
     const canvas = waveCanvasRef.current;
     const stage = stageRef.current;
     if (!canvas || !stage) {
@@ -2115,7 +2135,7 @@ export default function App() {
       if (!coolGradient || !hotGradient) {
         resizeCanvas();
       }
-      const count = qualityRef.current.waveBarCount;
+      const count = waveBarCountRef.current;
       const preferredGap = Math.min(5, Math.max(0.6, logicalWidth * 0.0018));
       const gap = Math.min(preferredGap, (logicalWidth / count) * 0.55);
       const barWidth = Math.max(
@@ -2245,16 +2265,31 @@ export default function App() {
         let bassTotal = 0;
         let titleTotal = 0;
         let titleCount = 0;
-        const activeWaveBarCount = currentQuality.waveBarCount;
+        let wavePeak = 0;
+        let waveFloor = 255;
+        const activeWaveBarCount = waveBarCountRef.current;
         const activeWavePairCount = activeWaveBarCount / 2;
         const waveTargets = waveTargetsRef.current;
         for (let i = 0; i < activeWavePairCount; i += 1) {
           const value = dataArray[i] || 0;
           total += value;
+          wavePeak = Math.max(wavePeak, value);
+          waveFloor = Math.min(waveFloor, value);
           if (i < 9) {
             bassTotal += value;
           }
-          const response = Math.pow(value / 255, 0.78);
+        }
+
+        const waveCeiling = Math.max(96, Math.min(255, wavePeak * 1.08));
+        const waveSpread = Math.max(1, wavePeak - waveFloor);
+        for (let i = 0; i < activeWavePairCount; i += 1) {
+          const value = dataArray[i] || 0;
+          const absolute = Math.pow(Math.min(1, value / waveCeiling), 0.82);
+          const contrast = Math.pow(
+            Math.max(0, (value - waveFloor) / waveSpread),
+            0.72,
+          );
+          const response = Math.min(1, absolute * 0.58 + contrast * 0.42);
           const scale = 0.12 + response * 1.95;
 
           waveTargets[i] = scale;
@@ -2686,6 +2721,33 @@ export default function App() {
                         }`}
                       >
                         {quality.shortName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
+                  <span className="settings-label">聲波</span>
+                  <div
+                    className="settings-button-row"
+                    data-testid="wave-bar-count-mode"
+                  >
+                    {WAVE_BAR_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        aria-label={`切換聲波條數為${option.name}條`}
+                        title={`聲波${option.name}條`}
+                        onClick={() => setActiveWaveBarCountId(option.id)}
+                        className={`quality-mode-button ${
+                          option.id === activeWaveBarOption.id
+                            ? "is-active"
+                            : ""
+                        }`}
+                      >
+                        {option.name}
                       </button>
                     ))}
                   </div>
