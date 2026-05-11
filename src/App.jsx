@@ -15,7 +15,7 @@ const QUALITY_OPTIONS = [
     id: "low",
     name: "低畫質",
     shortName: "低",
-    waveBarCount: 72,
+    waveBarCount: 120,
     floatingScoreCount: 22,
     threeRenderFps: 24,
     audioReactionFps: 30,
@@ -25,7 +25,7 @@ const QUALITY_OPTIONS = [
     id: "high",
     name: "高畫質",
     shortName: "高",
-    waveBarCount: 120,
+    waveBarCount: 240,
     floatingScoreCount: 34,
     threeRenderFps: 60,
     audioReactionFps: 60,
@@ -2043,7 +2043,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="absolute bottom-0 left-0 w-full h-[28%] flex items-end justify-center gap-[3px] px-5 z-10 opacity-[0.94]">
+        <div className="absolute bottom-0 left-0 w-full h-[28%] flex items-end gap-[clamp(2px,0.18vw,5px)] px-[clamp(12px,1.2vw,28px)] z-10 opacity-[0.94]">
           {mounted &&
             visibleWaves.map((wave, index) => (
               <div
@@ -2052,7 +2052,7 @@ export default function App() {
                 ref={(element) => {
                   waveRefs.current[index] = element;
                 }}
-                className={`flex-1 max-w-[15px] origin-bottom ${isListening ? "" : "wave-idle"}`}
+                className={`min-w-0 flex-1 origin-bottom ${isListening ? "" : "wave-idle"}`}
                 style={
                   isListening
                     ? {
