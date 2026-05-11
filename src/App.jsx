@@ -12,7 +12,7 @@ const DEFAULT_VISUAL_MODE = "staff";
 const DEFAULT_QUALITY_MODE = "low";
 const DEFAULT_STYLE_MODE = "stage";
 const DEFAULT_ORGANIZER_SIZE = "small";
-const APP_VERSION_LABEL = "v2026.05.11.1";
+const APP_VERSION_LABEL = "v2026.05.11.6";
 const QUALITY_OPTIONS = [
   {
     id: "low",
@@ -253,6 +253,7 @@ const customStyles = `
   .stage-shell {
     --sound-energy: 0;
     --bass-energy: 0;
+    --title-energy: 0;
     --stage-top-glow: rgba(248, 207, 111, 0.26);
     --stage-left-glow: rgba(148, 43, 38, 0.34);
     --stage-right-glow: rgba(42, 85, 132, 0.3);
@@ -880,11 +881,27 @@ const customStyles = `
   .gold-title {
     background: var(--title-gradient);
     background-size: 260% auto;
+    background-position: 50% center;
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
     -webkit-text-fill-color: transparent;
-    animation: gold-shine 7s ease-in-out infinite alternate, title-rise 980ms cubic-bezier(.2,.84,.25,1) both;
+    filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.95));
+    transition: filter 90ms linear;
+  }
+
+  .gold-title.is-effect-on {
+    filter:
+      drop-shadow(0 14px 28px rgba(0, 0, 0, 0.95))
+      drop-shadow(0 0 calc(12px + 28px * var(--title-energy)) rgba(var(--accent-hot-rgb), calc(0.16 + 0.58 * var(--title-energy))))
+      drop-shadow(0 0 calc(22px + 54px * var(--title-energy)) rgba(var(--accent-rgb), calc(0.1 + 0.34 * var(--title-energy))));
+    animation:
+      gold-shine 7s ease-in-out infinite alternate,
+      title-rise 980ms cubic-bezier(.2,.84,.25,1) both;
+  }
+
+  .gold-title.is-effect-off {
+    animation: title-rise 980ms cubic-bezier(.2,.84,.25,1) both;
   }
 
   .lower-info-zone {
@@ -999,6 +1016,65 @@ const customStyles = `
     height: 4vh;
     background: rgba(var(--accent-rgb), 0.3);
     flex: 0 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    .settings-dock {
+      position: fixed;
+      top: max(10px, env(safe-area-inset-top));
+      right: max(10px, env(safe-area-inset-right));
+      z-index: 100;
+    }
+
+    .settings-panel {
+      width: min(320px, calc(100vw - 22px));
+      max-height: calc(100dvh - 70px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 10px;
+      border-radius: 8px;
+      scrollbar-width: thin;
+    }
+
+    .settings-row {
+      gap: 8px;
+    }
+
+    .settings-section + .settings-section,
+    .settings-version {
+      margin-top: 8px;
+      padding-top: 8px;
+    }
+
+    .settings-label {
+      font-size: 11px;
+    }
+
+    .settings-button-row,
+    .theme-switcher {
+      gap: 5px;
+    }
+
+    .style-mode-button {
+      min-width: 44px;
+      height: 30px;
+      padding: 0 9px;
+      font-size: 12px;
+    }
+
+    .visual-mode-button,
+    .quality-mode-button,
+    .control-icon-button {
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
+      padding: 0;
+    }
+
+    .theme-swatch-button {
+      width: 30px;
+      height: 30px;
+    }
   }
 `;
 
@@ -1141,6 +1217,26 @@ function EyeIcon({ hidden = false }) {
         strokeWidth="1.8"
       />
       {hidden && <path className="icon-slash" d="M4.5 4.5 19.5 19.5" />}
+    </svg>
+  );
+}
+
+function SparkleIcon({ disabled = false }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 3.8 13.55 8.9 18.6 10.45 13.55 12 12 17.1 10.45 12 5.4 10.45 10.45 8.9 12 3.8Z"
+        stroke="currentColor"
+        strokeWidth="1.65"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18.25 14.25 19 16.75l2.45.75-2.45.75-.75 2.5-.75-2.5-2.45-.75 2.45-.75.75-2.5ZM5.25 15.5l.48 1.58 1.52.47-1.52.47-.48 1.58-.48-1.58-1.52-.47 1.52-.47.48-1.58Z"
+        stroke="currentColor"
+        strokeWidth="1.35"
+        strokeLinejoin="round"
+      />
+      {disabled && <path className="icon-slash" d="M4.5 4.5 19.5 19.5" />}
     </svg>
   );
 }
@@ -1837,6 +1933,7 @@ export default function App() {
     DEFAULT_ORGANIZER_SIZE,
   );
   const [isDateVisible, setIsDateVisible] = useState(true);
+  const [isTitleEffectEnabled, setIsTitleEffectEnabled] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const stageRef = useRef(null);
   const waveCanvasRef = useRef(null);
@@ -1900,6 +1997,12 @@ export default function App() {
     }
   }, []);
 
+  const setTitleEnergy = useCallback((energy) => {
+    if (stageRef.current) {
+      stageRef.current.style.setProperty("--title-energy", String(energy));
+    }
+  }, []);
+
   const stopMicrophone = useCallback(() => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
@@ -1926,8 +2029,9 @@ export default function App() {
 
     setSoundEnergy(0);
     setBassEnergy(0);
+    setTitleEnergy(0);
     setIsListening(false);
-  }, [setBassEnergy, setSoundEnergy]);
+  }, [setBassEnergy, setSoundEnergy, setTitleEnergy]);
 
   useEffect(() => {
     setMounted(true);
@@ -1956,6 +2060,7 @@ export default function App() {
     let logicalHeight = 0;
     let pixelRatio = 1;
     let accent = "250, 204, 21";
+    let accentHot = "255, 247, 198";
     let coolGradient = null;
     let hotGradient = null;
 
@@ -1965,7 +2070,7 @@ export default function App() {
     const refreshPaint = () => {
       const styles = getComputedStyle(stage);
       accent = readRgbVar(styles, "--accent-rgb", "250, 204, 21");
-      const accentHot = readRgbVar(styles, "--accent-hot-rgb", "255, 247, 198");
+      accentHot = readRgbVar(styles, "--accent-hot-rgb", "255, 247, 198");
       const accentDeep = readRgbVar(styles, "--accent-deep-rgb", "180, 83, 34");
       coolGradient = context.createLinearGradient(0, logicalHeight, 0, 0);
       coolGradient.addColorStop(0, `rgba(${accentDeep}, 0.54)`);
@@ -2023,7 +2128,9 @@ export default function App() {
 
       context.save();
       context.globalCompositeOperation = "lighter";
-      context.fillStyle = `rgba(${accent}, 0.16)`;
+      context.shadowBlur = 14;
+      context.shadowColor = `rgba(${accent}, 0.42)`;
+      context.fillStyle = `rgba(${accent}, 0.13)`;
       for (let index = 0; index < count; index += 1) {
         const pattern = waves[index];
         const phase =
@@ -2033,32 +2140,33 @@ export default function App() {
         const target = isListening ? targets[index] : idleTarget;
         const smoothing = isListening ? 0.34 : 0.12;
         levels[index] += (target - levels[index]) * smoothing;
-        const normalized = isListening
+        const rawNormalized = isListening
           ? Math.min(1, Math.max(0.06, levels[index] / 2.05))
           : Math.min(1, Math.max(0.06, levels[index]));
-        if (normalized < 0.62) {
+        const normalized = isListening
+          ? Math.pow(rawNormalized, 0.84)
+          : rawNormalized;
+        if (normalized < 0.66) {
           continue;
         }
         const height = logicalHeight * normalized;
         const x = index * (barWidth + gap);
         const y = logicalHeight - height;
-        context.fillRect(
-          Math.max(0, x - barWidth * 0.28),
-          y,
-          barWidth * 1.56,
-          height,
-        );
+        drawRoundedTopBar(x, y, barWidth, height, radius);
       }
       context.restore();
 
       for (let index = 0; index < count; index += 1) {
-        const normalized = isListening
+        const rawNormalized = isListening
           ? Math.min(1, Math.max(0.06, levels[index] / 2.05))
           : Math.min(1, Math.max(0.06, levels[index]));
+        const normalized = isListening
+          ? Math.pow(rawNormalized, 0.84)
+          : rawNormalized;
         const height = Math.max(2, logicalHeight * normalized);
         const x = index * (barWidth + gap);
         const y = logicalHeight - height;
-        context.fillStyle = normalized > 0.7 ? hotGradient : coolGradient;
+        context.fillStyle = normalized > 0.68 ? hotGradient : coolGradient;
         drawRoundedTopBar(x, y, barWidth, height, radius);
       }
 
@@ -2123,6 +2231,8 @@ export default function App() {
 
         let total = 0;
         let bassTotal = 0;
+        let titleTotal = 0;
+        let titleCount = 0;
         const activeWaveBarCount = currentQuality.waveBarCount;
         const activeWavePairCount = activeWaveBarCount / 2;
         const waveTargets = waveTargetsRef.current;
@@ -2132,16 +2242,29 @@ export default function App() {
           if (i < 9) {
             bassTotal += value;
           }
-          const scale = 0.12 + (value / 255) * 1.95;
+          const response = Math.pow(value / 255, 0.78);
+          const scale = 0.12 + response * 1.95;
 
           waveTargets[i] = scale;
           waveTargets[activeWaveBarCount - 1 - i] = scale;
         }
 
+        const titleStartBin = 12;
+        const titleEndBin = Math.min(bufferLength, 72);
+        for (let i = titleStartBin; i < titleEndBin; i += 1) {
+          titleTotal += dataArray[i] || 0;
+          titleCount += 1;
+        }
+
         const energy = Math.min(1, total / (activeWavePairCount * 210));
         const bassEnergy = Math.min(1, bassTotal / (9 * 190));
+        const titleEnergy =
+          titleCount > 0
+            ? Math.min(1, Math.pow(titleTotal / (titleCount * 185), 0.82))
+            : 0;
         setSoundEnergy(energy.toFixed(3));
         setBassEnergy(bassEnergy.toFixed(3));
+        setTitleEnergy(titleEnergy.toFixed(3));
       };
 
       renderFrame();
@@ -2155,200 +2278,288 @@ export default function App() {
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center">
       <div
-        ref={stageRef}
-        data-testid="cinematic-stage"
-        className={`stage-shell relative w-full max-w-[calc(100vh*21/9)] aspect-[21/9] overflow-hidden flex items-center justify-center font-sans select-none ${isListening ? "is-listening" : ""} ${isCinematicStyle ? "is-cinematic-style" : ""}`}
+        className="relative w-full max-w-[calc(100vh*21/9)] aspect-[21/9]"
         style={activeTheme.vars}
       >
         <style>{customStyles}</style>
 
-        {isCinematicStyle ? (
-          <CinematicStyleLayer mounted={mounted} particles={particles} />
-        ) : (
-          <>
-            <div className="absolute inset-x-0 top-0 h-[16%] bg-gradient-to-b from-yellow-100/14 via-yellow-500/10 to-transparent z-[1]" />
-            <div className="absolute inset-x-[6%] top-[7%] h-[1px] bg-gradient-to-r from-transparent via-yellow-200/70 to-transparent z-[2]" />
-            <div className="absolute left-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
-            <div className="absolute right-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
-
-            <div
-              data-testid="ambient-breathe"
-              className="ambient-breathe absolute left-1/2 top-[-18%] z-[1] h-[42%] w-[82%]"
-              style={{
-                "--ambient-x": "-50%",
-                "--ambient-y": "0%",
-                "--ambient-low": 0.18,
-                "--ambient-high": 0.48,
-                "--ambient-blur": "42px",
-                "--ambient-speed": "8.5s",
-                "--ambient-color": "rgba(255, 238, 176, 0.42)",
-              }}
-            />
-            <div
-              data-testid="ambient-breathe"
-              className="ambient-breathe absolute left-1/2 bottom-[-24%] z-[3] h-[48%] w-[90%]"
-              style={{
-                "--ambient-x": "-50%",
-                "--ambient-y": "0%",
-                "--ambient-low": 0.14,
-                "--ambient-high": 0.38,
-                "--ambient-blur": "56px",
-                "--ambient-speed": "9.6s",
-                "--ambient-color": "rgba(245, 158, 11, 0.36)",
-                animationDelay: "-2.1s",
-              }}
-            />
-            <div
-              data-testid="ambient-breathe"
-              className="ambient-breathe absolute left-[-20%] top-[15%] z-[2] h-[62%] w-[38%]"
-              style={{
-                "--ambient-x": "0%",
-                "--ambient-y": "0%",
-                "--ambient-low": 0.1,
-                "--ambient-high": 0.26,
-                "--ambient-blur": "58px",
-                "--ambient-speed": "10.4s",
-                "--ambient-color": "rgba(248, 113, 113, 0.28)",
-                animationDelay: "-3.4s",
-              }}
-            />
-            <div
-              data-testid="ambient-breathe"
-              className="ambient-breathe absolute right-[-20%] top-[15%] z-[2] h-[62%] w-[38%]"
-              style={{
-                "--ambient-x": "0%",
-                "--ambient-y": "0%",
-                "--ambient-low": 0.1,
-                "--ambient-high": 0.26,
-                "--ambient-blur": "58px",
-                "--ambient-speed": "10.4s",
-                "--ambient-color": "rgba(96, 165, 250, 0.24)",
-                animationDelay: "-5.2s",
-              }}
-            />
-          </>
-        )}
-
         <div
-          data-testid="reactive-center-glow"
-          className="reactive-center-glow absolute left-1/2 top-[45%] z-[2] h-[34vw] w-[56vw] rounded-full"
-        />
-        {activeVisualMode === "trophy" && (
-          <>
-            <TrophyScene
-              side="left"
-              theme={activeTheme}
-              energyRef={soundEnergyRef}
-              quality={activeQuality}
-            />
-            <TrophyScene
-              side="right"
-              theme={activeTheme}
-              energyRef={soundEnergyRef}
-              quality={activeQuality}
-            />
-          </>
-        )}
-        {activeVisualMode === "staff" && (
-          <>
-            <StaffScene side="left" />
-            <StaffScene side="right" />
-          </>
-        )}
-        {activeVisualMode === "microphone" && (
-          <>
-            <MicrophoneScene
-              side="left"
-              theme={activeTheme}
-              energyRef={soundEnergyRef}
-              quality={activeQuality}
-            />
-            <MicrophoneScene
-              side="right"
-              theme={activeTheme}
-              energyRef={soundEnergyRef}
-              quality={activeQuality}
-            />
-          </>
-        )}
+          ref={stageRef}
+          data-testid="cinematic-stage"
+          className={`stage-shell absolute inset-0 overflow-hidden flex items-center justify-center font-sans select-none ${isListening ? "is-listening" : ""} ${isCinematicStyle ? "is-cinematic-style" : ""}`}
+          style={activeTheme.vars}
+        >
+          {isCinematicStyle ? (
+            <CinematicStyleLayer mounted={mounted} particles={particles} />
+          ) : (
+            <>
+              <div className="absolute inset-x-0 top-0 h-[16%] bg-gradient-to-b from-yellow-100/14 via-yellow-500/10 to-transparent z-[1]" />
+              <div className="absolute inset-x-[6%] top-[7%] h-[1px] bg-gradient-to-r from-transparent via-yellow-200/70 to-transparent z-[2]" />
+              <div className="absolute left-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
+              <div className="absolute right-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
 
-        {!isCinematicStyle && (
-          <>
-            <div className="absolute inset-0 z-[1] pointer-events-none">
-              {lightBeams.map((beam) => (
-                <div
-                  key={beam.id}
-                  data-testid="stage-light-beam"
-                  className="stage-light-beam absolute top-[-18%] h-[135%]"
-                  style={{
-                    left: beam.left,
-                    width: beam.width,
-                    "--beam-rotate": beam.rotate,
-                    "--beam-speed": beam.speed,
-                    animationDelay: beam.delay,
-                  }}
-                />
-              ))}
-            </div>
+              <div
+                data-testid="ambient-breathe"
+                className="ambient-breathe absolute left-1/2 top-[-18%] z-[1] h-[42%] w-[82%]"
+                style={{
+                  "--ambient-x": "-50%",
+                  "--ambient-y": "0%",
+                  "--ambient-low": 0.18,
+                  "--ambient-high": 0.48,
+                  "--ambient-blur": "42px",
+                  "--ambient-speed": "8.5s",
+                  "--ambient-color": "rgba(255, 238, 176, 0.42)",
+                }}
+              />
+              <div
+                data-testid="ambient-breathe"
+                className="ambient-breathe absolute left-1/2 bottom-[-24%] z-[3] h-[48%] w-[90%]"
+                style={{
+                  "--ambient-x": "-50%",
+                  "--ambient-y": "0%",
+                  "--ambient-low": 0.14,
+                  "--ambient-high": 0.38,
+                  "--ambient-blur": "56px",
+                  "--ambient-speed": "9.6s",
+                  "--ambient-color": "rgba(245, 158, 11, 0.36)",
+                  animationDelay: "-2.1s",
+                }}
+              />
+              <div
+                data-testid="ambient-breathe"
+                className="ambient-breathe absolute left-[-20%] top-[15%] z-[2] h-[62%] w-[38%]"
+                style={{
+                  "--ambient-x": "0%",
+                  "--ambient-y": "0%",
+                  "--ambient-low": 0.1,
+                  "--ambient-high": 0.26,
+                  "--ambient-blur": "58px",
+                  "--ambient-speed": "10.4s",
+                  "--ambient-color": "rgba(248, 113, 113, 0.28)",
+                  animationDelay: "-3.4s",
+                }}
+              />
+              <div
+                data-testid="ambient-breathe"
+                className="ambient-breathe absolute right-[-20%] top-[15%] z-[2] h-[62%] w-[38%]"
+                style={{
+                  "--ambient-x": "0%",
+                  "--ambient-y": "0%",
+                  "--ambient-low": 0.1,
+                  "--ambient-high": 0.26,
+                  "--ambient-blur": "58px",
+                  "--ambient-speed": "10.4s",
+                  "--ambient-color": "rgba(96, 165, 250, 0.24)",
+                  animationDelay: "-5.2s",
+                }}
+              />
+            </>
+          )}
 
-            <div className="absolute inset-0 z-[2] pointer-events-none">
-              {energyRings.map((ring) => (
-                <div
-                  key={ring.id}
-                  data-testid="energy-ring"
-                  className="energy-ring absolute left-1/2 top-[43%] rounded-[50%]"
-                  style={{
-                    width: ring.width,
-                    height: ring.height,
-                    "--ring-opacity": ring.opacity,
-                    "--ring-speed": ring.speed,
-                    animationDelay: ring.delay,
-                  }}
-                />
-              ))}
-            </div>
+          <div
+            data-testid="reactive-center-glow"
+            className="reactive-center-glow absolute left-1/2 top-[45%] z-[2] h-[34vw] w-[56vw] rounded-full"
+          />
+          {activeVisualMode === "trophy" && (
+            <>
+              <TrophyScene
+                side="left"
+                theme={activeTheme}
+                energyRef={soundEnergyRef}
+                quality={activeQuality}
+              />
+              <TrophyScene
+                side="right"
+                theme={activeTheme}
+                energyRef={soundEnergyRef}
+                quality={activeQuality}
+              />
+            </>
+          )}
+          {activeVisualMode === "staff" && (
+            <>
+              <StaffScene side="left" />
+              <StaffScene side="right" />
+            </>
+          )}
+          {activeVisualMode === "microphone" && (
+            <>
+              <MicrophoneScene
+                side="left"
+                theme={activeTheme}
+                energyRef={soundEnergyRef}
+                quality={activeQuality}
+              />
+              <MicrophoneScene
+                side="right"
+                theme={activeTheme}
+                energyRef={soundEnergyRef}
+                quality={activeQuality}
+              />
+            </>
+          )}
 
-            <div className="absolute inset-x-[9%] bottom-[1%] h-[31%] z-[2] pointer-events-none overflow-hidden [perspective:620px]">
-              <div className="absolute inset-x-0 bottom-0 h-full origin-bottom rotate-x-[66deg] border-t border-yellow-200/20 bg-[linear-gradient(90deg,transparent,rgba(245,197,79,0.12),transparent)]">
-                {floorLines.map((line) => (
+          {!isCinematicStyle && (
+            <>
+              <div className="absolute inset-0 z-[1] pointer-events-none">
+                {lightBeams.map((beam) => (
                   <div
-                    key={line.id}
-                    data-testid="stage-floor-line"
-                    className="stage-floor-line absolute bottom-0 left-1/2 h-[150%] w-[1px] origin-bottom"
+                    key={beam.id}
+                    data-testid="stage-light-beam"
+                    className="stage-light-beam absolute top-[-18%] h-[135%]"
                     style={{
-                      transform: `translateX(-50%) rotate(${line.rotate})`,
-                      animationDelay: line.delay,
+                      left: beam.left,
+                      width: beam.width,
+                      "--beam-rotate": beam.rotate,
+                      "--beam-speed": beam.speed,
+                      animationDelay: beam.delay,
                     }}
                   />
                 ))}
-                <div className="absolute left-0 right-0 bottom-[28%] h-[1px] bg-yellow-300/20" />
-                <div className="absolute left-[8%] right-[8%] bottom-[53%] h-[1px] bg-yellow-300/16" />
-                <div className="absolute left-[18%] right-[18%] bottom-[74%] h-[1px] bg-yellow-300/12" />
+              </div>
+
+              <div className="absolute inset-0 z-[2] pointer-events-none">
+                {energyRings.map((ring) => (
+                  <div
+                    key={ring.id}
+                    data-testid="energy-ring"
+                    className="energy-ring absolute left-1/2 top-[43%] rounded-[50%]"
+                    style={{
+                      width: ring.width,
+                      height: ring.height,
+                      "--ring-opacity": ring.opacity,
+                      "--ring-speed": ring.speed,
+                      animationDelay: ring.delay,
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="absolute inset-x-[9%] bottom-[1%] h-[31%] z-[2] pointer-events-none overflow-hidden [perspective:620px]">
+                <div className="absolute inset-x-0 bottom-0 h-full origin-bottom rotate-x-[66deg] border-t border-yellow-200/20 bg-[linear-gradient(90deg,transparent,rgba(245,197,79,0.12),transparent)]">
+                  {floorLines.map((line) => (
+                    <div
+                      key={line.id}
+                      data-testid="stage-floor-line"
+                      className="stage-floor-line absolute bottom-0 left-1/2 h-[150%] w-[1px] origin-bottom"
+                      style={{
+                        transform: `translateX(-50%) rotate(${line.rotate})`,
+                        animationDelay: line.delay,
+                      }}
+                    />
+                  ))}
+                  <div className="absolute left-0 right-0 bottom-[28%] h-[1px] bg-yellow-300/20" />
+                  <div className="absolute left-[8%] right-[8%] bottom-[53%] h-[1px] bg-yellow-300/16" />
+                  <div className="absolute left-[18%] right-[18%] bottom-[74%] h-[1px] bg-yellow-300/12" />
+                </div>
+              </div>
+
+              <div className="absolute top-[10%] left-[12%] right-[12%] h-[14%] z-[4] overflow-hidden pointer-events-none">
+                <div className="scanner absolute top-[35%] h-[34%] w-[24%]" />
+              </div>
+            </>
+          )}
+
+          {mounted &&
+            visibleFloatingScores.map((item) => (
+              <div
+                key={item.id}
+                className="floating-score absolute z-[2] font-semibold tracking-[0.12em] pointer-events-none"
+                style={{
+                  left: item.left,
+                  "--drift": item.drift,
+                  animationDelay: item.delay,
+                  animationDuration: item.duration,
+                  fontSize: item.size,
+                }}
+              >
+                {item.symbol}
+              </div>
+            ))}
+
+          <div
+            data-testid="original-position-layout"
+            className="relative z-20 w-full flex flex-col items-center text-center mt-[-2%]"
+          >
+            <div className="w-[20%] h-[3px] bg-gradient-to-r from-transparent via-yellow-400 to-transparent mb-[2%]" />
+
+            <div className="mb-[2%] relative w-full flex flex-col items-center">
+              <div
+                className={`absolute top-1/2 left-1/2 h-[4px] w-[120%] pointer-events-none mix-blend-screen opacity-70 blur-[1px] ${isCinematicStyle ? "cinematic-lens-flare" : "-translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,rgba(255,255,255,0.78)_0%,rgba(250,204,21,0.32)_40%,transparent_100%)] rotate-[-8deg]"}`}
+              />
+
+              <p className="text-yellow-200/90 tracking-[0.6em] mb-[2%] text-[1.5vw] 2xl:text-2xl font-light uppercase drop-shadow-md">
+                115 Year / Singing Competition
+              </p>
+              <h2 className="text-[3.5vw] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-yellow-400 to-yellow-100 mb-[1%] tracking-[0.25em] gold-glow leading-none relative z-10">
+                115年臺南市議長盃
+              </h2>
+              <h1
+                data-testid="main-title"
+                className={`gold-title ${isTitleEffectEnabled ? "is-effect-on" : "is-effect-off"} text-[10vw] font-black tracking-widest py-[1%] leading-none relative z-10`}
+              >
+                南瀛歌唱比賽
+              </h1>
+            </div>
+
+            <div className="w-[70%] h-[2px] bg-gradient-to-r from-transparent via-yellow-500/80 to-transparent my-[1.5%] relative">
+              <div className="absolute left-1/2 top-1/2 h-[0.8vw] w-[0.8vw] -translate-x-1/2 -translate-y-1/2 rotate-45 border border-yellow-100/80 bg-yellow-300/70 shadow-[0_0_24px_rgba(250,204,21,0.92)]" />
+            </div>
+
+            <div className="lower-info-zone">
+              {isDateVisible && (
+                <div
+                  data-testid="date-pill"
+                  className="date-pill-content inline-flex items-center justify-center"
+                >
+                  <div className="absolute inset-0 bg-yellow-500/30 blur-[20px] rounded-full" />
+                  <div className="relative h-full px-[3vw] border border-yellow-400/40 rounded-full bg-black/80 backdrop-blur-md flex items-center justify-center gap-[1.5vw] shadow-[inset_0_0_15px_rgba(234,179,8,0.15)]">
+                    <span className="text-yellow-400/70 tracking-[0.4em] text-[0.9vw] uppercase whitespace-nowrap">
+                      比賽日期
+                    </span>
+                    <span className="text-[1.6vw] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 tracking-[0.1em] whitespace-nowrap">
+                      115年5月12日
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div
+                data-testid="organizer-row"
+                className="organizer-row"
+                style={{ "--organizer-scale": activeOrganizerSize.scale }}
+              >
+                <div className="organizer-content">
+                  <div className="organizer-item">
+                    <span className="organizer-label">主辦單位</span>
+                    <span className="organizer-name">臺南市議會</span>
+                  </div>
+                  <div className="organizer-divider" />
+                  <div className="organizer-item">
+                    <span className="organizer-label">承辦單位</span>
+                    <span className="organizer-name">
+                      臺南市南瀛婦女成長協會
+                    </span>
+                  </div>
+                  <div className="organizer-divider" />
+                  <div className="organizer-item">
+                    <span className="organizer-label">協辦單位</span>
+                    <span className="organizer-name">沈家鳳議員服務處</span>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="absolute top-[10%] left-[12%] right-[12%] h-[14%] z-[4] overflow-hidden pointer-events-none">
-              <div className="scanner absolute top-[35%] h-[34%] w-[24%]" />
-            </div>
-          </>
-        )}
-
-        {mounted &&
-          visibleFloatingScores.map((item) => (
-            <div
-              key={item.id}
-              className="floating-score absolute z-[2] font-semibold tracking-[0.12em] pointer-events-none"
-              style={{
-                left: item.left,
-                "--drift": item.drift,
-                animationDelay: item.delay,
-                animationDuration: item.duration,
-                fontSize: item.size,
-              }}
-            >
-              {item.symbol}
-            </div>
-          ))}
+          <div className="wave-wall absolute bottom-0 left-0 w-full h-[31%] px-[clamp(12px,1.2vw,28px)] z-10 opacity-[0.94]">
+            <canvas
+              ref={waveCanvasRef}
+              data-testid="wave-canvas"
+              className="wave-canvas"
+              aria-hidden="true"
+            />
+          </div>
+        </div>
 
         <div className="settings-dock">
           <button
@@ -2383,7 +2594,9 @@ export default function App() {
                         aria-label={`切換主題為${style.name}`}
                         title={style.name}
                         onClick={() => setActiveStyleId(style.id)}
-                        className={`style-mode-button ${style.id === activeStyle.id ? "is-active" : ""}`}
+                        className={`style-mode-button ${
+                          style.id === activeStyle.id ? "is-active" : ""
+                        }`}
                       >
                         {style.shortName}
                       </button>
@@ -2406,7 +2619,9 @@ export default function App() {
                         aria-label={`切換主視覺為${option.name}`}
                         title={option.name}
                         onClick={() => setActiveVisualMode(option.id)}
-                        className={`visual-mode-button ${option.id === activeVisualMode ? "is-active" : ""}`}
+                        className={`visual-mode-button ${
+                          option.id === activeVisualMode ? "is-active" : ""
+                        }`}
                       >
                         <VisualIcon type={option.icon} />
                       </button>
@@ -2426,7 +2641,9 @@ export default function App() {
                         aria-label={`切換配色為${theme.name}`}
                         title={theme.name}
                         onClick={() => setActiveThemeId(theme.id)}
-                        className={`theme-swatch-button ${theme.id === activeTheme.id ? "is-active" : ""}`}
+                        className={`theme-swatch-button ${
+                          theme.id === activeTheme.id ? "is-active" : ""
+                        }`}
                       >
                         <span
                           className="theme-swatch"
@@ -2452,7 +2669,9 @@ export default function App() {
                         aria-label={`切換至${quality.name}`}
                         title={quality.name}
                         onClick={() => setActiveQualityId(quality.id)}
-                        className={`quality-mode-button ${quality.id === activeQuality.id ? "is-active" : ""}`}
+                        className={`quality-mode-button ${
+                          quality.id === activeQuality.id ? "is-active" : ""
+                        }`}
                       >
                         {quality.shortName}
                       </button>
@@ -2475,7 +2694,9 @@ export default function App() {
                         aria-label={`切換單位字體為${size.name}`}
                         title={`單位字體${size.name}`}
                         onClick={() => setActiveOrganizerSizeId(size.id)}
-                        className={`quality-mode-button ${size.id === activeOrganizerSize.id ? "is-active" : ""}`}
+                        className={`quality-mode-button ${
+                          size.id === activeOrganizerSize.id ? "is-active" : ""
+                        }`}
                       >
                         {size.name}
                       </button>
@@ -2492,9 +2713,34 @@ export default function App() {
                     onClick={() => setIsDateVisible((visible) => !visible)}
                     aria-label={isDateVisible ? "隱藏比賽日期" : "顯示比賽日期"}
                     title={isDateVisible ? "隱藏比賽日期" : "顯示比賽日期"}
-                    className={`control-icon-button ${isDateVisible ? "is-active" : ""}`}
+                    className={`control-icon-button ${
+                      isDateVisible ? "is-active" : ""
+                    }`}
                   >
                     <EyeIcon hidden={!isDateVisible} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
+                  <span className="settings-label">標題</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setIsTitleEffectEnabled((enabled) => !enabled)
+                    }
+                    aria-label={
+                      isTitleEffectEnabled ? "關閉標題效果" : "開啟標題效果"
+                    }
+                    title={
+                      isTitleEffectEnabled ? "關閉標題效果" : "開啟標題效果"
+                    }
+                    className={`control-icon-button ${
+                      isTitleEffectEnabled ? "is-active" : ""
+                    }`}
+                  >
+                    <SparkleIcon disabled={!isTitleEffectEnabled} />
                   </button>
                 </div>
               </div>
@@ -2507,9 +2753,11 @@ export default function App() {
                     onClick={isListening ? stopMicrophone : startMicrophone}
                     aria-label={isListening ? "停止聲音互動" : "啟用聲音互動"}
                     title={isListening ? "停止聲音互動" : "啟用聲音互動"}
-                    className={`microphone-button control-icon-button ${isListening ? "is-active" : ""}`}
+                    className={`microphone-button control-icon-button ${
+                      isListening ? "is-active" : ""
+                    }`}
                   >
-                    <MicIcon muted={isListening} />
+                    <MicIcon muted={!isListening} />
                   </button>
                 </div>
                 {errorMessage && (
@@ -2522,87 +2770,6 @@ export default function App() {
               <div className="settings-version">版本 {APP_VERSION_LABEL}</div>
             </div>
           )}
-        </div>
-
-        <div
-          data-testid="original-position-layout"
-          className="relative z-20 w-full flex flex-col items-center text-center mt-[-2%]"
-        >
-          <div className="w-[20%] h-[3px] bg-gradient-to-r from-transparent via-yellow-400 to-transparent mb-[2%]" />
-
-          <div className="mb-[2%] relative w-full flex flex-col items-center">
-            <div
-              className={`absolute top-1/2 left-1/2 h-[4px] w-[120%] pointer-events-none mix-blend-screen opacity-70 blur-[1px] ${isCinematicStyle ? "cinematic-lens-flare" : "-translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,rgba(255,255,255,0.78)_0%,rgba(250,204,21,0.32)_40%,transparent_100%)] rotate-[-8deg]"}`}
-            />
-
-            <p className="text-yellow-200/90 tracking-[0.6em] mb-[2%] text-[1.5vw] 2xl:text-2xl font-light uppercase drop-shadow-md">
-              115 Year / Singing Competition
-            </p>
-            <h2 className="text-[3.5vw] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-yellow-400 to-yellow-100 mb-[1%] tracking-[0.25em] gold-glow leading-none relative z-10">
-              115年臺南市議長盃
-            </h2>
-            <h1
-              data-testid="main-title"
-              className="gold-title text-[10vw] font-black tracking-widest py-[1%] leading-none relative z-10"
-            >
-              南瀛歌唱比賽
-            </h1>
-          </div>
-
-          <div className="w-[70%] h-[2px] bg-gradient-to-r from-transparent via-yellow-500/80 to-transparent my-[1.5%] relative">
-            <div className="absolute left-1/2 top-1/2 h-[0.8vw] w-[0.8vw] -translate-x-1/2 -translate-y-1/2 rotate-45 border border-yellow-100/80 bg-yellow-300/70 shadow-[0_0_24px_rgba(250,204,21,0.92)]" />
-          </div>
-
-          <div className="lower-info-zone">
-            {isDateVisible && (
-              <div
-                data-testid="date-pill"
-                className="date-pill-content inline-flex items-center justify-center"
-              >
-                <div className="absolute inset-0 bg-yellow-500/30 blur-[20px] rounded-full" />
-                <div className="relative h-full px-[3vw] border border-yellow-400/40 rounded-full bg-black/80 backdrop-blur-md flex items-center justify-center gap-[1.5vw] shadow-[inset_0_0_15px_rgba(234,179,8,0.15)]">
-                  <span className="text-yellow-400/70 tracking-[0.4em] text-[0.9vw] uppercase whitespace-nowrap">
-                    比賽日期
-                  </span>
-                  <span className="text-[1.6vw] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 tracking-[0.1em] whitespace-nowrap">
-                    115年5月12日
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div
-              data-testid="organizer-row"
-              className="organizer-row"
-              style={{ "--organizer-scale": activeOrganizerSize.scale }}
-            >
-              <div className="organizer-content">
-                <div className="organizer-item">
-                  <span className="organizer-label">主辦單位</span>
-                  <span className="organizer-name">臺南市議會</span>
-                </div>
-                <div className="organizer-divider" />
-                <div className="organizer-item">
-                  <span className="organizer-label">承辦單位</span>
-                  <span className="organizer-name">臺南市南瀛婦女成長協會</span>
-                </div>
-                <div className="organizer-divider" />
-                <div className="organizer-item">
-                  <span className="organizer-label">協辦單位</span>
-                  <span className="organizer-name">沈家鳳議員服務處</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="wave-wall absolute bottom-0 left-0 w-full h-[28%] px-[clamp(12px,1.2vw,28px)] z-10 opacity-[0.94]">
-          <canvas
-            ref={waveCanvasRef}
-            data-testid="wave-canvas"
-            className="wave-canvas"
-            aria-hidden="true"
-          />
         </div>
       </div>
     </div>
