@@ -10,6 +10,8 @@ import * as THREE from "three";
 const NOTE_SYMBOLS = ["♪", "♫", "♬", "✦", "115", "南瀛"];
 const DEFAULT_VISUAL_MODE = "staff";
 const DEFAULT_QUALITY_MODE = "low";
+const DEFAULT_STYLE_MODE = "stage";
+const DEFAULT_ORGANIZER_SIZE = "small";
 const QUALITY_OPTIONS = [
   {
     id: "low",
@@ -43,6 +45,15 @@ const VISUAL_OPTIONS = [
   { id: "staff", name: "五線譜", icon: "staff" },
   { id: "microphone", name: "金色麥克風", icon: "mic" },
   { id: "none", name: "關閉", icon: "none" },
+];
+const STYLE_OPTIONS = [
+  { id: "stage", name: "舞台光束", shortName: "舞台" },
+  { id: "cinematic", name: "電影星塵", shortName: "電影" },
+];
+const ORGANIZER_SIZE_OPTIONS = [
+  { id: "small", name: "小", scale: 1 },
+  { id: "medium", name: "中", scale: 2 },
+  { id: "large", name: "大", scale: 3 },
 ];
 const THEME_OPTIONS = [
   {
@@ -171,6 +182,24 @@ const customStyles = `
     }
   }
 
+  @keyframes cinematic-slow-spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+    50% { transform: translate(-50%, -50%) rotate(180deg) scale(1.05); }
+    100% { transform: translate(-50%, -50%) rotate(360deg) scale(1); }
+  }
+
+  @keyframes cinematic-slow-spin-reverse {
+    from { transform: translate(-50%, -50%) rotate(360deg); }
+    to { transform: translate(-50%, -50%) rotate(0deg); }
+  }
+
+  @keyframes cinematic-particle {
+    0% { opacity: 0; transform: translateY(100vh) scale(1); }
+    18% { opacity: var(--particle-opacity); }
+    80% { opacity: calc(var(--particle-opacity) * 0.62); }
+    100% { opacity: 0; transform: translateY(-18vh) scale(0.52); }
+  }
+
   @keyframes trophy-halo {
     0%, 100% { opacity: 0.34; transform: scale(0.92); }
     50% { opacity: calc(0.62 + var(--sound-energy) * 0.22); transform: scale(calc(1.02 + var(--sound-energy) * 0.08)); }
@@ -202,11 +231,6 @@ const customStyles = `
   @keyframes floor-glide {
     0%, 100% { opacity: 0.2; }
     50% { opacity: 0.72; }
-  }
-
-  @keyframes wave-idle {
-    0%, 100% { transform: scaleY(0.16); background: var(--wave-cool-gradient); }
-    50% { transform: scaleY(1); background: var(--wave-hot-gradient); box-shadow: var(--wave-hot-shadow); }
   }
 
   @keyframes staff-drift {
@@ -274,6 +298,30 @@ const customStyles = `
     pointer-events: none;
   }
 
+  .stage-shell.is-cinematic-style {
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.68) 70%, #010101 100%),
+      radial-gradient(ellipse at 50% 0%, rgba(var(--accent-hot-rgb), 0.42), transparent 46%),
+      radial-gradient(ellipse at 50% 55%, rgba(var(--accent-rgb), 0.2), transparent 50%),
+      radial-gradient(ellipse at 0% 100%, rgba(var(--accent-deep-rgb), 0.32), transparent 58%),
+      radial-gradient(ellipse at 100% 100%, rgba(var(--accent-deep-rgb), 0.28), transparent 58%),
+      #020202;
+  }
+
+  .stage-shell.is-cinematic-style::before {
+    background:
+      linear-gradient(rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.026) 50%),
+      radial-gradient(circle at 50% 50%, rgba(var(--accent-hot-rgb), 0.05), transparent 58%);
+    background-size: 100% 4px, 100% 100%;
+    opacity: 0.78;
+  }
+
+  .stage-shell.is-cinematic-style::after {
+    background:
+      linear-gradient(90deg, rgba(0, 0, 0, 0.62) 0%, transparent 18%, transparent 82%, rgba(0, 0, 0, 0.62) 100%),
+      radial-gradient(ellipse at center, transparent 38%, rgba(0, 0, 0, 0.72) 100%);
+  }
+
   .ambient-breathe {
     animation: ambient-breathe var(--ambient-speed) ease-in-out infinite;
     background: radial-gradient(ellipse at center, var(--ambient-color), transparent 70%);
@@ -290,6 +338,106 @@ const customStyles = `
     mix-blend-mode: screen;
     pointer-events: none;
     transition: opacity 80ms linear, transform 80ms linear, filter 80ms linear;
+  }
+
+  .stage-shell.is-cinematic-style .reactive-center-glow {
+    opacity: calc(0.16 + var(--bass-energy) * 0.72);
+    transform: translate(-50%, -50%) scale(calc(1 + var(--bass-energy) * 0.5));
+    filter: blur(calc(88px + var(--bass-energy) * 62px));
+    background:
+      radial-gradient(circle at 50% 50%, rgba(var(--accent-hot-rgb), 0.72), rgba(var(--accent-rgb), 0.32) 34%, rgba(var(--accent-deep-rgb), 0.1) 62%, transparent 74%);
+  }
+
+  .cinematic-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--accent-rgb), 0.16);
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+
+  .cinematic-ring-a {
+    width: 120%;
+    height: 250%;
+    border-width: 2px;
+    opacity: 0.54;
+    animation: cinematic-slow-spin 30s ease-in-out infinite;
+  }
+
+  .cinematic-ring-b {
+    width: 90%;
+    height: 180%;
+    opacity: 0.74;
+    border-color: rgba(var(--accent-hot-rgb), 0.2);
+    animation: cinematic-slow-spin-reverse 40s linear infinite;
+  }
+
+  .cinematic-spotlight {
+    position: absolute;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    animation: ambient-breathe var(--ambient-speed) ease-in-out infinite;
+  }
+
+  .cinematic-spotlight-top {
+    inset: 0 auto auto 50%;
+    width: 180%;
+    height: 100%;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at top, rgba(var(--accent-rgb), 0.42), transparent 70%);
+    --ambient-x: -50%;
+    --ambient-y: 0%;
+    --ambient-low: 0.46;
+    --ambient-high: 0.86;
+    --ambient-blur: 0px;
+    --ambient-speed: 8s;
+  }
+
+  .cinematic-spotlight-left {
+    left: 0;
+    bottom: 0;
+    width: 90%;
+    height: 80%;
+    background: radial-gradient(ellipse at bottom left, rgba(var(--accent-deep-rgb), 0.34), transparent 60%);
+    --ambient-x: 0%;
+    --ambient-y: 0%;
+    --ambient-low: 0.36;
+    --ambient-high: 0.74;
+    --ambient-blur: 0px;
+    --ambient-speed: 8s;
+    animation-delay: -2s;
+  }
+
+  .cinematic-spotlight-right {
+    right: 0;
+    bottom: 0;
+    width: 90%;
+    height: 80%;
+    background: radial-gradient(ellipse at bottom right, rgba(var(--accent-deep-rgb), 0.32), transparent 60%);
+    --ambient-x: 0%;
+    --ambient-y: 0%;
+    --ambient-low: 0.34;
+    --ambient-high: 0.72;
+    --ambient-blur: 0px;
+    --ambient-speed: 8s;
+    animation-delay: -4s;
+  }
+
+  .cinematic-particle {
+    position: absolute;
+    z-index: 1;
+    border-radius: 999px;
+    background: rgba(var(--accent-hot-rgb), 0.9);
+    box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.8);
+    pointer-events: none;
+    animation: cinematic-particle linear infinite;
+  }
+
+  .cinematic-lens-flare {
+    background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255, 255, 255, 0.82) 0%, rgba(var(--accent-rgb), 0.34) 40%, transparent 100%);
+    transform: translate(-50%, -50%) rotate(-8deg);
   }
 
   .trophy-scene {
@@ -589,6 +737,30 @@ const customStyles = `
     box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.38), 0 0 10px rgba(0, 0, 0, 0.28);
   }
 
+  .style-mode-button {
+    min-width: clamp(44px, 3.4vw, 68px);
+    height: clamp(30px, 2vw, 42px);
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    padding: 0 11px;
+    color: rgba(var(--accent-hot-rgb), 0.74);
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: clamp(12px, 0.78vw, 14px);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+  }
+
+  .style-mode-button:hover,
+  .style-mode-button.is-active {
+    transform: translateY(-1px);
+    color: rgb(var(--accent-hot-rgb));
+    background: rgba(var(--accent-rgb), 0.14);
+    border-color: rgba(var(--accent-rgb), 0.54);
+  }
+
   .visual-mode-button {
     width: clamp(30px, 2vw, 42px);
     height: clamp(30px, 2vw, 42px);
@@ -724,15 +896,68 @@ const customStyles = `
     box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.48);
   }
 
-  .wave-idle {
-    animation: wave-idle ease-in-out infinite;
-    transform-origin: bottom;
+  .wave-wall {
+    contain: layout paint style;
+  }
+
+  .wave-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 
   .microphone-button {
     box-shadow:
       0 0 calc(18px + 22px * var(--sound-energy)) rgba(var(--accent-rgb), 0.36),
       inset 0 0 14px rgba(var(--accent-hot-rgb), 0.12);
+  }
+
+  .organizer-row {
+    --organizer-scale: 1;
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.9vw, 5vw, calc(5vw / var(--organizer-scale)));
+    width: 100%;
+    margin-top: 1%;
+    color: rgb(229, 231, 235);
+    font-size: calc(1.2vw * var(--organizer-scale));
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    text-align: center;
+  }
+
+  .organizer-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(3px, 0.34vw, 8px);
+    min-width: 0;
+    max-width: 31vw;
+  }
+
+  .organizer-label {
+    color: rgba(var(--accent-rgb), 0.9);
+    font-size: calc(1vw * var(--organizer-scale));
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .organizer-name {
+    color: white;
+    font-weight: 500;
+    line-height: 1.16;
+    text-wrap: balance;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .organizer-divider {
+    width: 2px;
+    height: clamp(4vh, calc(4vh * var(--organizer-scale)), 8vh);
+    background: rgba(var(--accent-rgb), 0.3);
+    flex: 0 0 auto;
   }
 `;
 
@@ -751,8 +976,8 @@ function createFloatingScores() {
 function createWaveBars() {
   return Array.from({ length: MAX_WAVE_BAR_COUNT }).map((_, index) => ({
     id: index,
-    delay: `${Math.random() * 1.35}s`,
-    duration: `${0.55 + Math.random() * 0.95}s`,
+    delayValue: Math.random() * 1.35,
+    durationValue: 0.55 + Math.random() * 0.95,
   }));
 }
 
@@ -809,6 +1034,17 @@ function createFloorLines() {
     id: index,
     rotate: `${-48 + index * 9.6}deg`,
     delay: `${index * -0.18}s`,
+  }));
+}
+
+function createParticles() {
+  return Array.from({ length: 80 }).map((_, index) => ({
+    id: index,
+    left: `${Math.random() * 100}%`,
+    delay: `${Math.random() * 15}s`,
+    duration: `${15 + Math.random() * 20}s`,
+    size: `${Math.random() * 3 + 1}px`,
+    opacity: Math.random() * 0.5 + 0.3,
   }));
 }
 
@@ -1495,16 +1731,57 @@ function StaffScene({ side }) {
   );
 }
 
+function CinematicStyleLayer({ mounted, particles }) {
+  return (
+    <>
+      <div
+        data-testid="cinematic-style-layer"
+        className="absolute inset-0 z-[1] pointer-events-none"
+        aria-hidden="true"
+      >
+        <div className="cinematic-ring cinematic-ring-a" />
+        <div className="cinematic-ring cinematic-ring-b" />
+        <div className="cinematic-spotlight cinematic-spotlight-top" />
+        <div className="cinematic-spotlight cinematic-spotlight-left" />
+        <div className="cinematic-spotlight cinematic-spotlight-right" />
+      </div>
+      {mounted &&
+        particles.map((particle) => (
+          <div
+            key={particle.id}
+            data-testid="cinematic-particle"
+            className="cinematic-particle"
+            style={{
+              left: particle.left,
+              width: particle.size,
+              height: particle.size,
+              "--particle-opacity": particle.opacity,
+              animationDelay: particle.delay,
+              animationDuration: particle.duration,
+            }}
+          />
+        ))}
+    </>
+  );
+}
+
 export default function App() {
   const [mounted, setMounted] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [activeStyleId, setActiveStyleId] = useState(DEFAULT_STYLE_MODE);
   const [activeThemeId, setActiveThemeId] = useState(THEME_OPTIONS[0].id);
   const [activeVisualMode, setActiveVisualMode] = useState(DEFAULT_VISUAL_MODE);
   const [activeQualityId, setActiveQualityId] = useState(DEFAULT_QUALITY_MODE);
+  const [activeOrganizerSizeId, setActiveOrganizerSizeId] = useState(
+    DEFAULT_ORGANIZER_SIZE,
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const stageRef = useRef(null);
-  const waveRefs = useRef([]);
+  const waveCanvasRef = useRef(null);
+  const waveTargetsRef = useRef(new Float32Array(MAX_WAVE_BAR_COUNT));
+  const waveLevelsRef = useRef(new Float32Array(MAX_WAVE_BAR_COUNT));
+  const waveFrameRef = useRef(null);
   const soundEnergyRef = useRef(0);
   const qualityRef = useRef(QUALITY_OPTIONS[0]);
   const animationRef = useRef(null);
@@ -1518,11 +1795,25 @@ export default function App() {
       THEME_OPTIONS[0],
     [activeThemeId],
   );
+  const activeStyle = useMemo(
+    () =>
+      STYLE_OPTIONS.find((style) => style.id === activeStyleId) ||
+      STYLE_OPTIONS[0],
+    [activeStyleId],
+  );
+  const isCinematicStyle = activeStyle.id === "cinematic";
   const activeQuality = useMemo(
     () =>
       QUALITY_OPTIONS.find((quality) => quality.id === activeQualityId) ||
       QUALITY_OPTIONS[0],
     [activeQualityId],
+  );
+  const activeOrganizerSize = useMemo(
+    () =>
+      ORGANIZER_SIZE_OPTIONS.find(
+        (size) => size.id === activeOrganizerSizeId,
+      ) || ORGANIZER_SIZE_OPTIONS[0],
+    [activeOrganizerSizeId],
   );
   const floatingScores = useMemo(() => createFloatingScores(), []);
   const waves = useMemo(() => createWaveBars(), []);
@@ -1530,13 +1821,10 @@ export default function App() {
     () => floatingScores.slice(0, activeQuality.floatingScoreCount),
     [activeQuality.floatingScoreCount, floatingScores],
   );
-  const visibleWaves = useMemo(
-    () => waves.slice(0, activeQuality.waveBarCount),
-    [activeQuality.waveBarCount, waves],
-  );
   const lightBeams = useMemo(() => createLightBeams(), []);
   const energyRings = useMemo(() => createEnergyRings(), []);
   const floorLines = useMemo(() => createFloorLines(), []);
+  const particles = useMemo(() => createParticles(), []);
 
   const setSoundEnergy = useCallback((energy) => {
     soundEnergyRef.current = Number(energy) || 0;
@@ -1572,6 +1860,9 @@ export default function App() {
       audioContextRef.current = null;
     }
 
+    waveTargetsRef.current.fill(0);
+    waveLevelsRef.current.fill(0);
+
     setSoundEnergy(0);
     setBassEnergy(0);
     setIsListening(false);
@@ -1584,8 +1875,147 @@ export default function App() {
 
   useEffect(() => {
     qualityRef.current = activeQuality;
-    waveRefs.current = waveRefs.current.slice(0, activeQuality.waveBarCount);
+    waveTargetsRef.current.fill(0);
+    waveLevelsRef.current.fill(0);
   }, [activeQuality]);
+
+  useEffect(() => {
+    const canvas = waveCanvasRef.current;
+    const stage = stageRef.current;
+    if (!canvas || !stage) {
+      return undefined;
+    }
+
+    const context = canvas.getContext("2d", { alpha: true });
+    if (!context) {
+      return undefined;
+    }
+
+    let logicalWidth = 0;
+    let logicalHeight = 0;
+    let pixelRatio = 1;
+    let accent = "250, 204, 21";
+    let coolGradient = null;
+    let hotGradient = null;
+
+    const readRgbVar = (styles, name, fallback) =>
+      styles.getPropertyValue(name).trim() || fallback;
+
+    const refreshPaint = () => {
+      const styles = getComputedStyle(stage);
+      accent = readRgbVar(styles, "--accent-rgb", "250, 204, 21");
+      const accentHot = readRgbVar(styles, "--accent-hot-rgb", "255, 247, 198");
+      const accentDeep = readRgbVar(styles, "--accent-deep-rgb", "180, 83, 34");
+      coolGradient = context.createLinearGradient(0, logicalHeight, 0, 0);
+      coolGradient.addColorStop(0, `rgba(${accentDeep}, 0.54)`);
+      coolGradient.addColorStop(1, `rgba(${accent}, 0.78)`);
+      hotGradient = context.createLinearGradient(0, logicalHeight, 0, 0);
+      hotGradient.addColorStop(0, `rgba(${accent}, 0.92)`);
+      hotGradient.addColorStop(1, `rgba(${accentHot}, 1)`);
+    };
+
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      logicalWidth = Math.max(1, rect.width);
+      logicalHeight = Math.max(1, rect.height);
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const nextWidth = Math.round(logicalWidth * pixelRatio);
+      const nextHeight = Math.round(logicalHeight * pixelRatio);
+      if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+        canvas.width = nextWidth;
+        canvas.height = nextHeight;
+      }
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      refreshPaint();
+    };
+
+    const drawRoundedTopBar = (x, y, width, height, radius) => {
+      const safeRadius = Math.min(radius, width / 2, height / 2);
+      context.beginPath();
+      context.moveTo(x, logicalHeight);
+      context.lineTo(x, y + safeRadius);
+      context.quadraticCurveTo(x, y, x + safeRadius, y);
+      context.lineTo(x + width - safeRadius, y);
+      context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+      context.lineTo(x + width, logicalHeight);
+      context.closePath();
+      context.fill();
+    };
+
+    const renderWaveFrame = (frameTime = 0) => {
+      if (!coolGradient || !hotGradient) {
+        resizeCanvas();
+      }
+      const count = qualityRef.current.waveBarCount;
+      const preferredGap = Math.min(5, Math.max(0.6, logicalWidth * 0.0018));
+      const gap = Math.min(preferredGap, (logicalWidth / count) * 0.55);
+      const barWidth = Math.max(
+        0.35,
+        (logicalWidth - gap * (count - 1)) / count,
+      );
+      const radius = Math.min(5, Math.max(2, logicalWidth * 0.0022));
+      const levels = waveLevelsRef.current;
+      const targets = waveTargetsRef.current;
+      const time = frameTime / 1000;
+
+      context.clearRect(0, 0, logicalWidth, logicalHeight);
+
+      context.save();
+      context.globalCompositeOperation = "lighter";
+      context.fillStyle = `rgba(${accent}, 0.16)`;
+      for (let index = 0; index < count; index += 1) {
+        const pattern = waves[index];
+        const phase =
+          ((time + pattern.delayValue) / pattern.durationValue) * Math.PI * 2;
+        const idleTarget =
+          0.16 + Math.pow((Math.sin(phase) + 1) / 2, 1.35) * 0.84;
+        const target = isListening ? targets[index] : idleTarget;
+        const smoothing = isListening ? 0.34 : 0.12;
+        levels[index] += (target - levels[index]) * smoothing;
+        const normalized = isListening
+          ? Math.min(1, Math.max(0.06, levels[index] / 2.05))
+          : Math.min(1, Math.max(0.06, levels[index]));
+        if (normalized < 0.62) {
+          continue;
+        }
+        const height = logicalHeight * normalized;
+        const x = index * (barWidth + gap);
+        const y = logicalHeight - height;
+        context.fillRect(
+          Math.max(0, x - barWidth * 0.28),
+          y,
+          barWidth * 1.56,
+          height,
+        );
+      }
+      context.restore();
+
+      for (let index = 0; index < count; index += 1) {
+        const normalized = isListening
+          ? Math.min(1, Math.max(0.06, levels[index] / 2.05))
+          : Math.min(1, Math.max(0.06, levels[index]));
+        const height = Math.max(2, logicalHeight * normalized);
+        const x = index * (barWidth + gap);
+        const y = logicalHeight - height;
+        context.fillStyle = normalized > 0.7 ? hotGradient : coolGradient;
+        drawRoundedTopBar(x, y, barWidth, height, radius);
+      }
+
+      waveFrameRef.current = requestAnimationFrame(renderWaveFrame);
+    };
+
+    const resizeObserver = new ResizeObserver(resizeCanvas);
+    resizeObserver.observe(canvas);
+    renderWaveFrame();
+
+    return () => {
+      resizeObserver.disconnect();
+      if (waveFrameRef.current) {
+        cancelAnimationFrame(waveFrameRef.current);
+        waveFrameRef.current = null;
+      }
+    };
+  }, [activeQuality, activeTheme, isCinematicStyle, isListening, waves]);
 
   const startMicrophone = async () => {
     if (isListening) {
@@ -1606,6 +2036,7 @@ export default function App() {
       const source = audioContext.createMediaStreamSource(stream);
 
       analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.76;
       source.connect(analyser);
 
       audioContextRef.current = audioContext;
@@ -1633,6 +2064,7 @@ export default function App() {
         let bassTotal = 0;
         const activeWaveBarCount = currentQuality.waveBarCount;
         const activeWavePairCount = activeWaveBarCount / 2;
+        const waveTargets = waveTargetsRef.current;
         for (let i = 0; i < activeWavePairCount; i += 1) {
           const value = dataArray[i] || 0;
           total += value;
@@ -1641,8 +2073,8 @@ export default function App() {
           }
           const scale = 0.12 + (value / 255) * 1.95;
 
-          updateWaveBar(i, scale, value);
-          updateWaveBar(activeWaveBarCount - 1 - i, scale, value);
+          waveTargets[i] = scale;
+          waveTargets[activeWaveBarCount - 1 - i] = scale;
         }
 
         const energy = Math.min(1, total / (activeWavePairCount * 210));
@@ -1659,92 +2091,82 @@ export default function App() {
     }
   };
 
-  const updateWaveBar = (index, scale, value) => {
-    const element = waveRefs.current[index];
-    if (!element) {
-      return;
-    }
-
-    const hot = value > 145;
-    element.style.transform = `scaleY(${scale})`;
-    element.style.background = hot
-      ? "var(--wave-hot-gradient)"
-      : "var(--wave-cool-gradient)";
-    element.style.boxShadow = hot
-      ? "var(--wave-hot-shadow)"
-      : "var(--wave-cool-shadow)";
-  };
-
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center">
       <div
         ref={stageRef}
         data-testid="cinematic-stage"
-        className={`stage-shell relative w-full max-w-[calc(100vh*21/9)] aspect-[21/9] overflow-hidden flex items-center justify-center font-sans select-none ${isListening ? "is-listening" : ""}`}
+        className={`stage-shell relative w-full max-w-[calc(100vh*21/9)] aspect-[21/9] overflow-hidden flex items-center justify-center font-sans select-none ${isListening ? "is-listening" : ""} ${isCinematicStyle ? "is-cinematic-style" : ""}`}
         style={activeTheme.vars}
       >
         <style>{customStyles}</style>
 
-        <div className="absolute inset-x-0 top-0 h-[16%] bg-gradient-to-b from-yellow-100/14 via-yellow-500/10 to-transparent z-[1]" />
-        <div className="absolute inset-x-[6%] top-[7%] h-[1px] bg-gradient-to-r from-transparent via-yellow-200/70 to-transparent z-[2]" />
-        <div className="absolute left-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
-        <div className="absolute right-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
+        {isCinematicStyle ? (
+          <CinematicStyleLayer mounted={mounted} particles={particles} />
+        ) : (
+          <>
+            <div className="absolute inset-x-0 top-0 h-[16%] bg-gradient-to-b from-yellow-100/14 via-yellow-500/10 to-transparent z-[1]" />
+            <div className="absolute inset-x-[6%] top-[7%] h-[1px] bg-gradient-to-r from-transparent via-yellow-200/70 to-transparent z-[2]" />
+            <div className="absolute left-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
+            <div className="absolute right-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
 
-        <div
-          data-testid="ambient-breathe"
-          className="ambient-breathe absolute left-1/2 top-[-18%] z-[1] h-[42%] w-[82%]"
-          style={{
-            "--ambient-x": "-50%",
-            "--ambient-y": "0%",
-            "--ambient-low": 0.18,
-            "--ambient-high": 0.48,
-            "--ambient-blur": "42px",
-            "--ambient-speed": "8.5s",
-            "--ambient-color": "rgba(255, 238, 176, 0.42)",
-          }}
-        />
-        <div
-          data-testid="ambient-breathe"
-          className="ambient-breathe absolute left-1/2 bottom-[-24%] z-[3] h-[48%] w-[90%]"
-          style={{
-            "--ambient-x": "-50%",
-            "--ambient-y": "0%",
-            "--ambient-low": 0.14,
-            "--ambient-high": 0.38,
-            "--ambient-blur": "56px",
-            "--ambient-speed": "9.6s",
-            "--ambient-color": "rgba(245, 158, 11, 0.36)",
-            animationDelay: "-2.1s",
-          }}
-        />
-        <div
-          data-testid="ambient-breathe"
-          className="ambient-breathe absolute left-[-20%] top-[15%] z-[2] h-[62%] w-[38%]"
-          style={{
-            "--ambient-x": "0%",
-            "--ambient-y": "0%",
-            "--ambient-low": 0.1,
-            "--ambient-high": 0.26,
-            "--ambient-blur": "58px",
-            "--ambient-speed": "10.4s",
-            "--ambient-color": "rgba(248, 113, 113, 0.28)",
-            animationDelay: "-3.4s",
-          }}
-        />
-        <div
-          data-testid="ambient-breathe"
-          className="ambient-breathe absolute right-[-20%] top-[15%] z-[2] h-[62%] w-[38%]"
-          style={{
-            "--ambient-x": "0%",
-            "--ambient-y": "0%",
-            "--ambient-low": 0.1,
-            "--ambient-high": 0.26,
-            "--ambient-blur": "58px",
-            "--ambient-speed": "10.4s",
-            "--ambient-color": "rgba(96, 165, 250, 0.24)",
-            animationDelay: "-5.2s",
-          }}
-        />
+            <div
+              data-testid="ambient-breathe"
+              className="ambient-breathe absolute left-1/2 top-[-18%] z-[1] h-[42%] w-[82%]"
+              style={{
+                "--ambient-x": "-50%",
+                "--ambient-y": "0%",
+                "--ambient-low": 0.18,
+                "--ambient-high": 0.48,
+                "--ambient-blur": "42px",
+                "--ambient-speed": "8.5s",
+                "--ambient-color": "rgba(255, 238, 176, 0.42)",
+              }}
+            />
+            <div
+              data-testid="ambient-breathe"
+              className="ambient-breathe absolute left-1/2 bottom-[-24%] z-[3] h-[48%] w-[90%]"
+              style={{
+                "--ambient-x": "-50%",
+                "--ambient-y": "0%",
+                "--ambient-low": 0.14,
+                "--ambient-high": 0.38,
+                "--ambient-blur": "56px",
+                "--ambient-speed": "9.6s",
+                "--ambient-color": "rgba(245, 158, 11, 0.36)",
+                animationDelay: "-2.1s",
+              }}
+            />
+            <div
+              data-testid="ambient-breathe"
+              className="ambient-breathe absolute left-[-20%] top-[15%] z-[2] h-[62%] w-[38%]"
+              style={{
+                "--ambient-x": "0%",
+                "--ambient-y": "0%",
+                "--ambient-low": 0.1,
+                "--ambient-high": 0.26,
+                "--ambient-blur": "58px",
+                "--ambient-speed": "10.4s",
+                "--ambient-color": "rgba(248, 113, 113, 0.28)",
+                animationDelay: "-3.4s",
+              }}
+            />
+            <div
+              data-testid="ambient-breathe"
+              className="ambient-breathe absolute right-[-20%] top-[15%] z-[2] h-[62%] w-[38%]"
+              style={{
+                "--ambient-x": "0%",
+                "--ambient-y": "0%",
+                "--ambient-low": 0.1,
+                "--ambient-high": 0.26,
+                "--ambient-blur": "58px",
+                "--ambient-speed": "10.4s",
+                "--ambient-color": "rgba(96, 165, 250, 0.24)",
+                animationDelay: "-5.2s",
+              }}
+            />
+          </>
+        )}
 
         <div
           data-testid="reactive-center-glow"
@@ -1789,62 +2211,66 @@ export default function App() {
           </>
         )}
 
-        <div className="absolute inset-0 z-[1] pointer-events-none">
-          {lightBeams.map((beam) => (
-            <div
-              key={beam.id}
-              data-testid="stage-light-beam"
-              className="stage-light-beam absolute top-[-18%] h-[135%]"
-              style={{
-                left: beam.left,
-                width: beam.width,
-                "--beam-rotate": beam.rotate,
-                "--beam-speed": beam.speed,
-                animationDelay: beam.delay,
-              }}
-            />
-          ))}
-        </div>
+        {!isCinematicStyle && (
+          <>
+            <div className="absolute inset-0 z-[1] pointer-events-none">
+              {lightBeams.map((beam) => (
+                <div
+                  key={beam.id}
+                  data-testid="stage-light-beam"
+                  className="stage-light-beam absolute top-[-18%] h-[135%]"
+                  style={{
+                    left: beam.left,
+                    width: beam.width,
+                    "--beam-rotate": beam.rotate,
+                    "--beam-speed": beam.speed,
+                    animationDelay: beam.delay,
+                  }}
+                />
+              ))}
+            </div>
 
-        <div className="absolute inset-0 z-[2] pointer-events-none">
-          {energyRings.map((ring) => (
-            <div
-              key={ring.id}
-              data-testid="energy-ring"
-              className="energy-ring absolute left-1/2 top-[43%] rounded-[50%]"
-              style={{
-                width: ring.width,
-                height: ring.height,
-                "--ring-opacity": ring.opacity,
-                "--ring-speed": ring.speed,
-                animationDelay: ring.delay,
-              }}
-            />
-          ))}
-        </div>
+            <div className="absolute inset-0 z-[2] pointer-events-none">
+              {energyRings.map((ring) => (
+                <div
+                  key={ring.id}
+                  data-testid="energy-ring"
+                  className="energy-ring absolute left-1/2 top-[43%] rounded-[50%]"
+                  style={{
+                    width: ring.width,
+                    height: ring.height,
+                    "--ring-opacity": ring.opacity,
+                    "--ring-speed": ring.speed,
+                    animationDelay: ring.delay,
+                  }}
+                />
+              ))}
+            </div>
 
-        <div className="absolute inset-x-[9%] bottom-[1%] h-[31%] z-[2] pointer-events-none overflow-hidden [perspective:620px]">
-          <div className="absolute inset-x-0 bottom-0 h-full origin-bottom rotate-x-[66deg] border-t border-yellow-200/20 bg-[linear-gradient(90deg,transparent,rgba(245,197,79,0.12),transparent)]">
-            {floorLines.map((line) => (
-              <div
-                key={line.id}
-                data-testid="stage-floor-line"
-                className="stage-floor-line absolute bottom-0 left-1/2 h-[150%] w-[1px] origin-bottom"
-                style={{
-                  transform: `translateX(-50%) rotate(${line.rotate})`,
-                  animationDelay: line.delay,
-                }}
-              />
-            ))}
-            <div className="absolute left-0 right-0 bottom-[28%] h-[1px] bg-yellow-300/20" />
-            <div className="absolute left-[8%] right-[8%] bottom-[53%] h-[1px] bg-yellow-300/16" />
-            <div className="absolute left-[18%] right-[18%] bottom-[74%] h-[1px] bg-yellow-300/12" />
-          </div>
-        </div>
+            <div className="absolute inset-x-[9%] bottom-[1%] h-[31%] z-[2] pointer-events-none overflow-hidden [perspective:620px]">
+              <div className="absolute inset-x-0 bottom-0 h-full origin-bottom rotate-x-[66deg] border-t border-yellow-200/20 bg-[linear-gradient(90deg,transparent,rgba(245,197,79,0.12),transparent)]">
+                {floorLines.map((line) => (
+                  <div
+                    key={line.id}
+                    data-testid="stage-floor-line"
+                    className="stage-floor-line absolute bottom-0 left-1/2 h-[150%] w-[1px] origin-bottom"
+                    style={{
+                      transform: `translateX(-50%) rotate(${line.rotate})`,
+                      animationDelay: line.delay,
+                    }}
+                  />
+                ))}
+                <div className="absolute left-0 right-0 bottom-[28%] h-[1px] bg-yellow-300/20" />
+                <div className="absolute left-[8%] right-[8%] bottom-[53%] h-[1px] bg-yellow-300/16" />
+                <div className="absolute left-[18%] right-[18%] bottom-[74%] h-[1px] bg-yellow-300/12" />
+              </div>
+            </div>
 
-        <div className="absolute top-[10%] left-[12%] right-[12%] h-[14%] z-[4] overflow-hidden pointer-events-none">
-          <div className="scanner absolute top-[35%] h-[34%] w-[24%]" />
-        </div>
+            <div className="absolute top-[10%] left-[12%] right-[12%] h-[14%] z-[4] overflow-hidden pointer-events-none">
+              <div className="scanner absolute top-[35%] h-[34%] w-[24%]" />
+            </div>
+          </>
+        )}
 
         {mounted &&
           visibleFloatingScores.map((item) => (
@@ -1884,6 +2310,29 @@ export default function App() {
             >
               <div className="settings-section">
                 <div className="settings-row">
+                  <span className="settings-label">主題</span>
+                  <div
+                    className="settings-button-row"
+                    data-testid="stage-style-mode"
+                  >
+                    {STYLE_OPTIONS.map((style) => (
+                      <button
+                        key={style.id}
+                        type="button"
+                        aria-label={`切換主題為${style.name}`}
+                        title={style.name}
+                        onClick={() => setActiveStyleId(style.id)}
+                        className={`style-mode-button ${style.id === activeStyle.id ? "is-active" : ""}`}
+                      >
+                        {style.shortName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
                   <span className="settings-label">主視覺</span>
                   <div
                     className="settings-button-row"
@@ -1907,13 +2356,13 @@ export default function App() {
 
               <div className="settings-section">
                 <div className="settings-row">
-                  <span className="settings-label">主題</span>
+                  <span className="settings-label">配色</span>
                   <div className="theme-switcher">
                     {THEME_OPTIONS.map((theme) => (
                       <button
                         key={theme.id}
                         type="button"
-                        aria-label={`切換至${theme.name}主題`}
+                        aria-label={`切換配色為${theme.name}`}
                         title={theme.name}
                         onClick={() => setActiveThemeId(theme.id)}
                         className={`theme-swatch-button ${theme.id === activeTheme.id ? "is-active" : ""}`}
@@ -1953,6 +2402,29 @@ export default function App() {
 
               <div className="settings-section">
                 <div className="settings-row">
+                  <span className="settings-label">單位</span>
+                  <div
+                    className="settings-button-row"
+                    data-testid="organizer-size-mode"
+                  >
+                    {ORGANIZER_SIZE_OPTIONS.map((size) => (
+                      <button
+                        key={size.id}
+                        type="button"
+                        aria-label={`切換單位字體為${size.name}`}
+                        title={`單位字體${size.name}`}
+                        onClick={() => setActiveOrganizerSizeId(size.id)}
+                        className={`quality-mode-button ${size.id === activeOrganizerSize.id ? "is-active" : ""}`}
+                      >
+                        {size.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
                   <span className="settings-label">聲音</span>
                   <button
                     type="button"
@@ -1981,7 +2453,9 @@ export default function App() {
           <div className="w-[20%] h-[3px] bg-gradient-to-r from-transparent via-yellow-400 to-transparent mb-[2%]" />
 
           <div className="mb-[2%] relative w-full flex flex-col items-center">
-            <div className="absolute top-1/2 left-1/2 h-[4px] w-[120%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,rgba(255,255,255,0.78)_0%,rgba(250,204,21,0.32)_40%,transparent_100%)] rotate-[-8deg] pointer-events-none mix-blend-screen opacity-70 blur-[1px]" />
+            <div
+              className={`absolute top-1/2 left-1/2 h-[4px] w-[120%] pointer-events-none mix-blend-screen opacity-70 blur-[1px] ${isCinematicStyle ? "cinematic-lens-flare" : "-translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,rgba(255,255,255,0.78)_0%,rgba(250,204,21,0.32)_40%,transparent_100%)] rotate-[-8deg]"}`}
+            />
 
             <p className="text-yellow-200/90 tracking-[0.6em] mb-[2%] text-[1.5vw] 2xl:text-2xl font-light uppercase drop-shadow-md">
               115 Year / Singing Competition
@@ -2018,56 +2492,33 @@ export default function App() {
 
           <div
             data-testid="organizer-row"
-            className="flex flex-row justify-center items-center gap-[5vw] text-gray-200 tracking-widest text-[1.2vw] 2xl:text-xl font-light w-full mt-[1%]"
+            className="organizer-row"
+            style={{ "--organizer-scale": activeOrganizerSize.scale }}
           >
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-yellow-500/90 text-[1vw]">主辦單位</span>
-              <span className="text-white font-medium whitespace-nowrap">
-                臺南市議會
-              </span>
+            <div className="organizer-item">
+              <span className="organizer-label">主辦單位</span>
+              <span className="organizer-name">臺南市議會</span>
             </div>
-            <div className="w-[2px] h-[4vh] bg-yellow-500/30" />
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-yellow-500/90 text-[1vw]">承辦單位</span>
-              <span className="text-white font-medium whitespace-nowrap">
-                臺南市南瀛婦女成長協會
-              </span>
+            <div className="organizer-divider" />
+            <div className="organizer-item">
+              <span className="organizer-label">承辦單位</span>
+              <span className="organizer-name">臺南市南瀛婦女成長協會</span>
             </div>
-            <div className="w-[2px] h-[4vh] bg-yellow-500/30" />
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-yellow-500/90 text-[1vw]">協辦單位</span>
-              <span className="text-white font-medium whitespace-nowrap">
-                沈家鳳議員服務處
-              </span>
+            <div className="organizer-divider" />
+            <div className="organizer-item">
+              <span className="organizer-label">協辦單位</span>
+              <span className="organizer-name">沈家鳳議員服務處</span>
             </div>
           </div>
         </div>
 
-        <div className="absolute bottom-0 left-0 w-full h-[28%] flex items-end gap-[clamp(2px,0.18vw,5px)] px-[clamp(12px,1.2vw,28px)] z-10 opacity-[0.94]">
-          {mounted &&
-            visibleWaves.map((wave, index) => (
-              <div
-                key={wave.id}
-                data-testid="wave-bar"
-                ref={(element) => {
-                  waveRefs.current[index] = element;
-                }}
-                className={`min-w-0 flex-1 origin-bottom ${isListening ? "" : "wave-idle"}`}
-                style={
-                  isListening
-                    ? {
-                        height: "100%",
-                        transform: "scaleY(0.14)",
-                        background: "var(--wave-cool-gradient)",
-                      }
-                    : {
-                        height: "100%",
-                        animationDelay: wave.delay,
-                        animationDuration: wave.duration,
-                      }
-                }
-              />
-            ))}
+        <div className="wave-wall absolute bottom-0 left-0 w-full h-[28%] px-[clamp(12px,1.2vw,28px)] z-10 opacity-[0.94]">
+          <canvas
+            ref={waveCanvasRef}
+            data-testid="wave-canvas"
+            className="wave-canvas"
+            aria-hidden="true"
+          />
         </div>
       </div>
     </div>
