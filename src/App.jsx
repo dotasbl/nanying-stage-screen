@@ -7,34 +7,56 @@ import React, {
 } from "react";
 import * as THREE from "three";
 
-const NOTE_SYMBOLS = ["♪", "♫", "♬", "✦", "115", "南瀛"];
+const NOTE_SYMBOLS = ["♪", "♫", "♬", "✦", "婦女", "南瀛"];
 const DEFAULT_VISUAL_MODE = "staff";
-const DEFAULT_QUALITY_MODE = "low";
 const DEFAULT_STYLE_MODE = "stage";
 const DEFAULT_ORGANIZER_SIZE = "small";
 const DEFAULT_WAVE_BAR_COUNT = 120;
-const APP_VERSION_LABEL = "v2026.05.11.9";
-const AUDIO_ANALYSER_SMOOTHING = 0.48;
+const DEFAULT_FLOATING_DENSITY = "low";
+const DEFAULT_THREE_RENDER_FPS = "low";
+const DEFAULT_AUDIO_REACTION_FPS = "low";
+const DEFAULT_THREE_PIXEL_RATIO = "low";
+const DEFAULT_TITLE_EFFECT_MODE = "standard";
+const APP_VERSION_LABEL = "v2026.05.12.14";
 const WAVE_ATTACK_SMOOTHING = 0.68;
 const WAVE_RELEASE_SMOOTHING = 0.24;
-const QUALITY_OPTIONS = [
+const FLOATING_DENSITY_OPTIONS = [
+  { id: "low", name: "22", value: 22 },
+  { id: "medium", name: "34", value: 34 },
+  { id: "high", name: "50", value: 50 },
+];
+const THREE_RENDER_FPS_OPTIONS = [
+  { id: "low", name: "30", value: 30 },
+  { id: "high", name: "60", value: 60 },
+];
+const AUDIO_REACTION_FPS_OPTIONS = [
+  { id: "low", name: "30", value: 30 },
+  { id: "medium", name: "45", value: 45 },
+  { id: "high", name: "60", value: 60 },
+];
+const THREE_PIXEL_RATIO_OPTIONS = [
+  { id: "low", name: "1.25", value: 1.25 },
+  { id: "high", name: "2", value: 2 },
+];
+const TITLE_EFFECT_OPTIONS = [
+  { id: "off", name: "關閉", shortName: "關" },
+  { id: "standard", name: "標準", shortName: "標" },
+  { id: "impact", name: "震撼", shortName: "震" },
+];
+const AUDIO_DETECTION_OPTIONS = [
   {
-    id: "low",
-    name: "低畫質",
-    shortName: "低",
-    floatingScoreCount: 22,
-    threeRenderFps: 24,
-    audioReactionFps: 30,
-    maxThreePixelRatio: 1.25,
+    id: "dynamic",
+    name: "動感",
+    shortName: "動",
+    fftSize: 256,
+    smoothingTimeConstant: 0.48,
   },
   {
-    id: "high",
-    name: "高畫質",
-    shortName: "高",
-    floatingScoreCount: 34,
-    threeRenderFps: 60,
-    audioReactionFps: 60,
-    maxThreePixelRatio: 2,
+    id: "classic",
+    name: "經典",
+    shortName: "經",
+    fftSize: 2048,
+    smoothingTimeConstant: 0.8,
   },
 ];
 const WAVE_BAR_OPTIONS = [
@@ -46,7 +68,7 @@ const MAX_WAVE_BAR_COUNT = Math.max(
   ...WAVE_BAR_OPTIONS.map((option) => option.value),
 );
 const MAX_FLOATING_SCORE_COUNT = Math.max(
-  ...QUALITY_OPTIONS.map((quality) => quality.floatingScoreCount),
+  ...FLOATING_DENSITY_OPTIONS.map((option) => option.value),
 );
 const VISUAL_OPTIONS = [
   { id: "trophy", name: "獎盃", icon: "cup" },
@@ -57,7 +79,10 @@ const VISUAL_OPTIONS = [
 const STYLE_OPTIONS = [
   { id: "stage", name: "舞台光束", shortName: "舞台" },
   { id: "cinematic", name: "電影星塵", shortName: "電影" },
+  { id: "neon", name: "夜店霓虹", shortName: "霓虹" },
 ];
+const defaultAudioDetectionModeForStyle = (styleId) =>
+  styleId === "neon" ? "dynamic" : "classic";
 const ORGANIZER_SIZE_OPTIONS = [
   { id: "small", name: "小", scale: 1 },
   { id: "medium", name: "中", scale: 1.2 },
@@ -208,6 +233,64 @@ const customStyles = `
     100% { opacity: 0; transform: translateY(-18vh) scale(0.52); }
   }
 
+  @keyframes neon-laser-sweep {
+    0%, 100% { opacity: 0.18; transform: translateX(var(--laser-x-start)) rotate(var(--laser-rotate)) scaleX(0.82); }
+    45% { opacity: 0.86; transform: translateX(var(--laser-x-end)) rotate(calc(var(--laser-rotate) * -0.72)) scaleX(1.08); }
+  }
+
+  @keyframes neon-grid-pulse {
+    0%, 100% { opacity: 0.34; filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.42)); }
+    50% { opacity: 0.72; filter: drop-shadow(0 0 18px rgba(236, 72, 153, 0.54)); }
+  }
+
+  @keyframes neon-orbit-spin {
+    from { transform: translate(-50%, -50%) rotate(0deg) scale(0.96); }
+    to { transform: translate(-50%, -50%) rotate(360deg) scale(1.04); }
+  }
+
+  @keyframes neon-equalizer-idle {
+    0%, 100% { transform: scaleY(0.2); opacity: 0.32; }
+    50% { transform: scaleY(var(--bar-peak)); opacity: 0.82; }
+  }
+
+  @keyframes neon-visor-scan {
+    0% { transform: translateX(-118%); opacity: 0; }
+    18% { opacity: 0.82; }
+    62% { opacity: 0.44; }
+    100% { transform: translateX(118%); opacity: 0; }
+  }
+
+  @keyframes neon-sign-flicker {
+    0%, 100% { opacity: 0.3; filter: brightness(0.9); }
+    14% { opacity: 0.82; filter: brightness(1.35); }
+    18% { opacity: 0.42; }
+    22% { opacity: 0.92; filter: brightness(1.5); }
+    58% { opacity: 0.56; }
+  }
+
+  @keyframes neon-fog-roll {
+    from { transform: translateX(-8%) scale(1); opacity: 0.34; }
+    to { transform: translateX(8%) scale(1.08); opacity: 0.54; }
+  }
+
+  @keyframes neon-burst-pulse {
+    0%, 100% { opacity: calc(0.22 + var(--bass-energy) * 0.3); transform: translate(-50%, -50%) scale(0.86) rotate(0deg); }
+    50% { opacity: calc(0.54 + var(--bass-energy) * 0.38); transform: translate(-50%, -50%) scale(calc(1.03 + var(--bass-energy) * 0.16)) rotate(8deg); }
+  }
+
+  @keyframes neon-tunnel-spin {
+    from { transform: translate(-50%, -50%) rotate(0deg) scale(0.94); }
+    to { transform: translate(-50%, -50%) rotate(360deg) scale(1.06); }
+  }
+
+  @keyframes neon-wall-flicker {
+    0%, 100% { opacity: 0.34; filter: blur(0.2px) brightness(1); }
+    16% { opacity: 0.88; filter: blur(0.2px) brightness(1.7); }
+    21% { opacity: 0.42; }
+    26% { opacity: 0.96; filter: blur(0.2px) brightness(1.9); }
+    62% { opacity: 0.52; }
+  }
+
   @keyframes trophy-halo {
     0%, 100% { opacity: 0.34; transform: scale(0.92); }
     50% { opacity: calc(0.62 + var(--sound-energy) * 0.22); transform: scale(calc(1.02 + var(--sound-energy) * 0.08)); }
@@ -232,8 +315,9 @@ const customStyles = `
 
   @keyframes score-float {
     0% { transform: translateY(110vh) translateX(0) scale(0.7); opacity: 0; }
-    12% { opacity: 0.68; }
-    50% { transform: translateY(46vh) translateX(var(--drift)) scale(1); opacity: 0.42; }
+    12% { opacity: 0.54; }
+    46% { transform: translateY(48vh) translateX(var(--drift)) scale(1); opacity: 0.34; }
+    72% { opacity: 0.46; }
     100% { transform: translateY(-18vh) translateX(calc(var(--drift) * -0.45)) scale(1.38); opacity: 0; }
   }
 
@@ -332,6 +416,41 @@ const customStyles = `
       radial-gradient(ellipse at center, transparent 38%, rgba(0, 0, 0, 0.72) 100%);
   }
 
+  .stage-shell.is-neon-style {
+    --accent-rgb: 34, 211, 238;
+    --accent-soft-rgb: 168, 85, 247;
+    --accent-hot-rgb: 240, 249, 255;
+    --accent-deep-rgb: 236, 72, 153;
+    --beam-shadow-rgb: 236, 72, 153;
+    --trophy-halo: rgba(34, 211, 238, 0.34);
+    --title-gradient: linear-gradient(100deg, #67e8f9 0%, #f0abfc 18%, #f8fafc 36%, #22d3ee 54%, #fb7185 72%, #a78bfa 100%);
+    --wave-cool-gradient: linear-gradient(to top, rgba(88, 28, 135, 0.58), rgba(34, 211, 238, 0.76));
+    --wave-hot-gradient: linear-gradient(to top, rgba(236, 72, 153, 0.96), rgba(240, 249, 255, 1));
+    --wave-cool-shadow: 0 0 10px rgba(34, 211, 238, 0.34);
+    --wave-hot-shadow: 0 0 24px rgba(34, 211, 238, 0.86), 0 0 38px rgba(236, 72, 153, 0.48);
+    background:
+      linear-gradient(180deg, rgba(2, 0, 10, 0.1) 0%, rgba(0, 0, 0, 0.78) 68%, #020005 100%),
+      radial-gradient(ellipse at 50% 0%, rgba(34, 211, 238, 0.34), transparent 42%),
+      radial-gradient(ellipse at 20% 35%, rgba(236, 72, 153, 0.24), transparent 40%),
+      radial-gradient(ellipse at 82% 40%, rgba(168, 85, 247, 0.22), transparent 42%),
+      radial-gradient(ellipse at 50% 88%, rgba(20, 184, 166, 0.18), transparent 50%),
+      #030008;
+  }
+
+  .stage-shell.is-neon-style::before {
+    background:
+      linear-gradient(rgba(34, 211, 238, 0.028) 50%, rgba(0, 0, 0, 0) 50%),
+      linear-gradient(90deg, rgba(236, 72, 153, 0.035) 1px, transparent 1px);
+    background-size: 100% 3px, 32px 100%;
+    opacity: 0.74;
+  }
+
+  .stage-shell.is-neon-style::after {
+    background:
+      radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.74) 100%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.7) 0%, transparent 20%, transparent 80%, rgba(0, 0, 0, 0.7) 100%);
+  }
+
   .ambient-breathe {
     animation: ambient-breathe var(--ambient-speed) ease-in-out infinite;
     background: radial-gradient(ellipse at center, var(--ambient-color), transparent 70%);
@@ -356,6 +475,290 @@ const customStyles = `
     filter: blur(calc(88px + var(--bass-energy) * 62px));
     background:
       radial-gradient(circle at 50% 50%, rgba(var(--accent-hot-rgb), 0.72), rgba(var(--accent-rgb), 0.32) 34%, rgba(var(--accent-deep-rgb), 0.1) 62%, transparent 74%);
+  }
+
+  .stage-shell.is-neon-style .reactive-center-glow {
+    opacity: calc(0.2 + var(--bass-energy) * 0.78);
+    transform: translate(-50%, -50%) scale(calc(0.95 + var(--bass-energy) * 0.48));
+    filter: blur(calc(66px + var(--bass-energy) * 54px));
+    background:
+      radial-gradient(circle at 50% 50%, rgba(240, 249, 255, 0.58), rgba(34, 211, 238, 0.34) 28%, rgba(236, 72, 153, 0.22) 54%, transparent 72%);
+  }
+
+  .neon-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .neon-fog {
+    position: absolute;
+    left: -10%;
+    right: -10%;
+    top: 5%;
+    height: 62%;
+    background:
+      radial-gradient(ellipse at 28% 44%, rgba(34, 211, 238, 0.18), transparent 45%),
+      radial-gradient(ellipse at 70% 34%, rgba(236, 72, 153, 0.18), transparent 48%),
+      radial-gradient(ellipse at 50% 80%, rgba(168, 85, 247, 0.12), transparent 56%);
+    mix-blend-mode: screen;
+    filter: blur(28px);
+    animation: neon-fog-roll 8s ease-in-out infinite alternate;
+  }
+
+  .neon-tunnel {
+    position: absolute;
+    left: 50%;
+    top: 43%;
+    width: 96%;
+    height: 180%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background:
+      repeating-radial-gradient(ellipse at center, rgba(34, 211, 238, 0.18) 0 1px, transparent 2px 8%, rgba(236, 72, 153, 0.16) 9% 10%, transparent 11% 15%),
+      conic-gradient(from 90deg, transparent 0deg, rgba(34, 211, 238, 0.12) 38deg, transparent 74deg, rgba(236, 72, 153, 0.14) 120deg, transparent 168deg, rgba(168, 85, 247, 0.12) 230deg, transparent 310deg);
+    mix-blend-mode: screen;
+    opacity: 0.42;
+    filter: blur(0.3px) drop-shadow(0 0 24px rgba(34, 211, 238, 0.25));
+    animation: neon-tunnel-spin 24s linear infinite;
+    mask-image: radial-gradient(ellipse at center, transparent 0 18%, rgba(0, 0, 0, 0.9) 30%, rgba(0, 0, 0, 0.52) 52%, transparent 76%);
+  }
+
+  .neon-burst {
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    width: 68%;
+    height: 88%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background:
+      conic-gradient(from 0deg, transparent 0deg, rgba(34, 211, 238, 0.36) 16deg, transparent 34deg, rgba(236, 72, 153, 0.32) 54deg, transparent 82deg, rgba(168, 85, 247, 0.28) 108deg, transparent 138deg, rgba(34, 211, 238, 0.26) 178deg, transparent 220deg, rgba(236, 72, 153, 0.3) 266deg, transparent 360deg),
+      radial-gradient(ellipse at center, rgba(240, 249, 255, 0.24), transparent 58%);
+    mix-blend-mode: screen;
+    filter: blur(8px);
+    animation: neon-burst-pulse 3.2s ease-in-out infinite;
+  }
+
+  .neon-light-wall {
+    position: absolute;
+    top: 9%;
+    width: 10%;
+    height: 66%;
+    border-radius: 999px;
+    mix-blend-mode: screen;
+    animation: neon-wall-flicker 3.8s ease-in-out infinite;
+  }
+
+  .neon-light-wall-left {
+    left: 3.4%;
+    background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.72), rgba(236, 72, 153, 0.46), transparent);
+    box-shadow: 0 0 28px rgba(34, 211, 238, 0.52), 0 0 56px rgba(34, 211, 238, 0.3);
+  }
+
+  .neon-light-wall-right {
+    right: 3.4%;
+    background: linear-gradient(180deg, transparent, rgba(236, 72, 153, 0.72), rgba(34, 211, 238, 0.46), transparent);
+    box-shadow: 0 0 28px rgba(236, 72, 153, 0.52), 0 0 56px rgba(236, 72, 153, 0.3);
+    animation-delay: -1.4s;
+  }
+
+  .neon-city {
+    position: absolute;
+    left: 7%;
+    right: 7%;
+    bottom: 29%;
+    height: 24%;
+    display: flex;
+    align-items: flex-end;
+    gap: clamp(5px, 0.75vw, 14px);
+    opacity: 0.74;
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.82) 58%, transparent 100%);
+  }
+
+  .neon-building {
+    position: relative;
+    flex: 1 1 0;
+    height: var(--building-height);
+    min-width: 10px;
+    border-radius: 2px 2px 0 0;
+    background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.16), rgba(3, 7, 18, 0.74)),
+      repeating-linear-gradient(180deg, transparent 0 12%, var(--window-color) 13% 16%, transparent 17% 25%);
+    border: 1px solid rgba(34, 211, 238, 0.12);
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.48), 0 0 16px var(--building-glow);
+  }
+
+  .neon-building::before {
+    content: "";
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    top: -10px;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--sign-color);
+    box-shadow: 0 0 12px var(--sign-color), 0 0 22px var(--sign-color);
+    animation: neon-sign-flicker var(--sign-speed) ease-in-out infinite;
+    animation-delay: var(--sign-delay);
+  }
+
+  .neon-building::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -28px;
+    width: 1px;
+    height: 28px;
+    background: linear-gradient(to top, var(--sign-color), transparent);
+    box-shadow: 0 0 10px var(--sign-color);
+    opacity: 0.62;
+  }
+
+  .neon-visor {
+    position: absolute;
+    left: 50%;
+    top: 37%;
+    width: 62%;
+    height: 14%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    grid-template-columns: 1fr 0.18fr 1fr;
+    align-items: center;
+    gap: 1.2%;
+    opacity: 0.54;
+    mix-blend-mode: screen;
+    filter: drop-shadow(0 0 24px rgba(34, 211, 238, 0.4));
+  }
+
+  .neon-visor-lens {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(240, 249, 255, 0.2);
+    background:
+      linear-gradient(105deg, rgba(34, 211, 238, 0.08), rgba(236, 72, 153, 0.18), rgba(34, 211, 238, 0.06)),
+      repeating-linear-gradient(180deg, rgba(240, 249, 255, 0.18) 0 1px, transparent 1px 7px);
+    box-shadow:
+      inset 0 0 28px rgba(34, 211, 238, 0.22),
+      inset 0 0 42px rgba(236, 72, 153, 0.16),
+      0 0 24px rgba(34, 211, 238, 0.36),
+      0 0 38px rgba(236, 72, 153, 0.22);
+  }
+
+  .neon-visor-lens-left {
+    border-radius: 14px 5px 20px 8px;
+    clip-path: polygon(0 18%, 100% 0, 93% 84%, 8% 100%);
+  }
+
+  .neon-visor-lens-right {
+    border-radius: 5px 14px 8px 20px;
+    clip-path: polygon(0 0, 100% 18%, 92% 100%, 7% 84%);
+  }
+
+  .neon-visor-lens::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.84), transparent);
+    animation: neon-visor-scan 3.2s ease-in-out infinite;
+  }
+
+  .neon-visor-bridge {
+    height: 18%;
+    border-radius: 999px;
+    background: rgba(240, 249, 255, 0.62);
+    box-shadow: 0 0 18px rgba(240, 249, 255, 0.52), 0 0 28px rgba(34, 211, 238, 0.32);
+  }
+
+  .neon-grid {
+    position: absolute;
+    left: -12%;
+    right: -12%;
+    bottom: -22%;
+    height: 48%;
+    transform: perspective(560px) rotateX(64deg);
+    transform-origin: center bottom;
+    background:
+      linear-gradient(rgba(34, 211, 238, 0.34) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(236, 72, 153, 0.34) 1px, transparent 1px);
+    background-size: 100% 13%, 7% 100%;
+    border-top: 1px solid rgba(34, 211, 238, 0.38);
+    animation: neon-grid-pulse 4.8s ease-in-out infinite;
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.68) 52%, transparent 100%);
+  }
+
+  .neon-horizon {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    bottom: 27%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.82), rgba(236, 72, 153, 0.72), transparent);
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.56), 0 0 32px rgba(236, 72, 153, 0.42);
+  }
+
+  .neon-laser {
+    position: absolute;
+    top: var(--laser-top);
+    left: var(--laser-left);
+    width: var(--laser-width);
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, var(--laser-color), rgba(255, 255, 255, 0.82), transparent);
+    box-shadow: 0 0 18px var(--laser-color), 0 0 34px var(--laser-color);
+    mix-blend-mode: screen;
+    animation: neon-laser-sweep var(--laser-speed) ease-in-out infinite;
+    animation-delay: var(--laser-delay);
+  }
+
+  .neon-orbit {
+    position: absolute;
+    left: 50%;
+    top: 44%;
+    border-radius: 50%;
+    border: 1px solid rgba(34, 211, 238, 0.34);
+    box-shadow: 0 0 22px rgba(34, 211, 238, 0.2), inset 0 0 28px rgba(236, 72, 153, 0.12);
+    mix-blend-mode: screen;
+    animation: neon-orbit-spin var(--orbit-speed) linear infinite;
+  }
+
+  .neon-orbit-a {
+    width: 56%;
+    height: 118%;
+    --orbit-speed: 22s;
+  }
+
+  .neon-orbit-b {
+    width: 76%;
+    height: 150%;
+    border-color: rgba(236, 72, 153, 0.26);
+    animation-direction: reverse;
+    --orbit-speed: 31s;
+  }
+
+  .neon-equalizer {
+    position: absolute;
+    left: 50%;
+    bottom: 26%;
+    display: flex;
+    gap: 5px;
+    transform: translateX(-50%);
+    opacity: 0.58;
+    mix-blend-mode: screen;
+  }
+
+  .neon-equalizer span {
+    width: clamp(2px, 0.22vw, 6px);
+    height: clamp(18px, 3.8vw, 76px);
+    border-radius: 999px;
+    transform-origin: bottom;
+    background: linear-gradient(to top, rgba(34, 211, 238, 0.24), rgba(236, 72, 153, 0.76), rgba(255, 255, 255, 0.86));
+    box-shadow: 0 0 14px rgba(34, 211, 238, 0.46), 0 0 22px rgba(236, 72, 153, 0.3);
+    animation: neon-equalizer-idle var(--bar-speed) ease-in-out infinite;
+    animation-delay: var(--bar-delay);
   }
 
   .cinematic-ring {
@@ -448,6 +851,11 @@ const customStyles = `
   .cinematic-lens-flare {
     background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255, 255, 255, 0.82) 0%, rgba(var(--accent-rgb), 0.34) 40%, transparent 100%);
     transform: translate(-50%, -50%) rotate(-8deg);
+  }
+
+  .neon-lens-flare {
+    background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255, 255, 255, 0.74) 0%, rgba(34, 211, 238, 0.34) 34%, rgba(236, 72, 153, 0.24) 52%, transparent 100%);
+    transform: translate(-50%, -50%) rotate(-6deg);
   }
 
   .trophy-scene {
@@ -911,6 +1319,117 @@ const customStyles = `
     animation: title-rise 980ms cubic-bezier(.2,.84,.25,1) both;
   }
 
+  .neon-title-sign {
+    display: inline-block;
+    isolation: isolate;
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    -webkit-text-stroke: clamp(0.35px, 0.035vw, 0.9px) rgba(255, 255, 255, 0.92);
+    font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    text-shadow:
+      0 0 3px rgba(255, 255, 255, 1),
+      0 0 7px rgba(255, 255, 255, 0.92),
+      0 0 13px rgba(255, 43, 214, 0.88),
+      0 0 26px rgba(255, 43, 214, 0.72),
+      0 0 52px rgba(236, 72, 153, 0.55),
+      0 0 92px rgba(34, 211, 238, 0.36);
+    filter:
+      drop-shadow(0 16px 20px rgba(0, 0, 0, 1))
+      drop-shadow(0 0 10px rgba(255, 255, 255, 0.22));
+    animation: title-rise 980ms cubic-bezier(.2,.84,.25,1) both;
+  }
+
+  .neon-title-sign::before,
+  .neon-title-sign::after {
+    content: "";
+    position: absolute;
+    left: -5%;
+    right: -5%;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .neon-title-sign::before {
+    top: 4%;
+    bottom: 3%;
+    border: 1px solid rgba(34, 211, 238, 0.58);
+    border-radius: 999px;
+    background:
+      linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.08), rgba(236, 72, 153, 0.08), transparent),
+      rgba(0, 0, 0, 0.08);
+    box-shadow:
+      inset 0 0 20px rgba(34, 211, 238, 0.32),
+      inset 0 0 34px rgba(236, 72, 153, 0.2),
+      0 0 16px rgba(34, 211, 238, 0.42),
+      0 0 34px rgba(236, 72, 153, 0.24);
+    opacity: 0.52;
+    transform-origin: center;
+  }
+
+  .neon-title-sign::after {
+    top: 50%;
+    height: 2px;
+    transform: translateY(-50%);
+    background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.72), rgba(255, 255, 255, 0.78), rgba(236, 72, 153, 0.72), transparent);
+    box-shadow:
+      0 0 10px rgba(34, 211, 238, 0.7),
+      0 0 22px rgba(236, 72, 153, 0.42);
+    opacity: 0.36;
+  }
+
+  .neon-title-sign.is-effect-on {
+    text-shadow:
+      0 0 3px rgba(255, 255, 255, 1),
+      0 0 calc(7px + 5px * var(--title-energy)) rgba(255, 255, 255, 0.94),
+      0 0 calc(13px + 12px * var(--title-energy)) rgba(255, 43, 214, calc(0.74 + 0.22 * var(--title-energy))),
+      0 0 calc(26px + 28px * var(--title-energy)) rgba(255, 43, 214, calc(0.56 + 0.28 * var(--title-energy))),
+      0 0 calc(52px + 46px * var(--title-energy)) rgba(236, 72, 153, calc(0.38 + 0.28 * var(--title-energy))),
+      0 0 calc(92px + 78px * var(--title-energy)) rgba(34, 211, 238, calc(0.24 + 0.28 * var(--title-energy)));
+    filter:
+      drop-shadow(0 16px 20px rgba(0, 0, 0, 1))
+      drop-shadow(0 0 calc(10px + 16px * var(--title-energy)) rgba(255, 255, 255, calc(0.18 + 0.26 * var(--title-energy))));
+  }
+
+  .neon-title-sign.is-effect-on::before {
+    opacity: calc(0.46 + 0.24 * var(--title-energy));
+    box-shadow:
+      inset 0 0 calc(20px + 18px * var(--title-energy)) rgba(34, 211, 238, calc(0.26 + 0.2 * var(--title-energy))),
+      inset 0 0 calc(34px + 22px * var(--title-energy)) rgba(236, 72, 153, calc(0.16 + 0.18 * var(--title-energy))),
+      0 0 calc(16px + 22px * var(--title-energy)) rgba(34, 211, 238, calc(0.34 + 0.28 * var(--title-energy))),
+      0 0 calc(34px + 38px * var(--title-energy)) rgba(236, 72, 153, calc(0.2 + 0.24 * var(--title-energy)));
+  }
+
+  .neon-title-sign.is-effect-impact {
+    animation: title-rise 980ms cubic-bezier(.2,.84,.25,1) both;
+    text-shadow:
+      0 0 3px rgba(255, 255, 255, 1),
+      0 0 calc(8px + 7px * var(--title-energy)) rgba(255, 255, 255, 0.96),
+      0 0 calc(16px + 18px * var(--title-energy)) rgba(255, 43, 214, calc(0.8 + 0.18 * var(--title-energy))),
+      0 0 calc(32px + 38px * var(--title-energy)) rgba(255, 43, 214, calc(0.62 + 0.3 * var(--title-energy))),
+      0 0 calc(62px + 64px * var(--title-energy)) rgba(236, 72, 153, calc(0.42 + 0.34 * var(--title-energy))),
+      0 0 calc(104px + 96px * var(--title-energy)) rgba(34, 211, 238, calc(0.28 + 0.36 * var(--title-energy)));
+  }
+
+  .neon-title-sign.is-effect-impact::before {
+    transform: scale(calc(1 + var(--bass-energy) * 0.035), calc(1 + var(--bass-energy) * 0.12));
+    opacity: calc(0.5 + var(--bass-energy) * 0.28);
+    border-color: rgba(34, 211, 238, calc(0.5 + var(--bass-energy) * 0.3));
+    box-shadow:
+      inset 0 0 calc(22px + 32px * var(--bass-energy)) rgba(34, 211, 238, calc(0.28 + 0.28 * var(--bass-energy))),
+      inset 0 0 calc(36px + 44px * var(--bass-energy)) rgba(236, 72, 153, calc(0.18 + 0.24 * var(--bass-energy))),
+      0 0 calc(18px + 34px * var(--bass-energy)) rgba(34, 211, 238, calc(0.38 + 0.34 * var(--bass-energy))),
+      0 0 calc(38px + 58px * var(--bass-energy)) rgba(236, 72, 153, calc(0.24 + 0.32 * var(--bass-energy)));
+  }
+
+  .neon-title-sign.is-effect-impact::after {
+    opacity: calc(0.32 + var(--title-energy) * 0.34);
+    background:
+      linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.66), rgba(255, 255, 255, 0.74), rgba(236, 72, 153, 0.64), transparent);
+    box-shadow:
+      0 0 calc(10px + 16px * var(--title-energy)) rgba(34, 211, 238, 0.48),
+      0 0 calc(18px + 26px * var(--title-energy)) rgba(236, 72, 153, 0.28);
+  }
+
   .lower-info-zone {
     position: relative;
     width: 100%;
@@ -937,8 +1456,12 @@ const customStyles = `
 
   .floating-score {
     animation: score-float linear infinite;
-    color: rgba(var(--accent-hot-rgb), 0.38);
-    text-shadow: 0 0 18px rgba(var(--accent-rgb), 0.42);
+    color: rgba(var(--accent-hot-rgb), 0.34);
+    mix-blend-mode: screen;
+    text-shadow:
+      0 0 12px rgba(var(--accent-hot-rgb), 0.42),
+      0 0 28px rgba(var(--accent-rgb), 0.34);
+    filter: drop-shadow(0 0 18px rgba(var(--accent-rgb), 0.3));
   }
 
   .stage-floor-line {
@@ -1224,26 +1747,6 @@ function EyeIcon({ hidden = false }) {
         strokeWidth="1.8"
       />
       {hidden && <path className="icon-slash" d="M4.5 4.5 19.5 19.5" />}
-    </svg>
-  );
-}
-
-function SparkleIcon({ disabled = false }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 3.8 13.55 8.9 18.6 10.45 13.55 12 12 17.1 10.45 12 5.4 10.45 10.45 8.9 12 3.8Z"
-        stroke="currentColor"
-        strokeWidth="1.65"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M18.25 14.25 19 16.75l2.45.75-2.45.75-.75 2.5-.75-2.5-2.45-.75 2.45-.75.75-2.5ZM5.25 15.5l.48 1.58 1.52.47-1.52.47-.48 1.58-.48-1.58-1.52-.47 1.52-.47.48-1.58Z"
-        stroke="currentColor"
-        strokeWidth="1.35"
-        strokeLinejoin="round"
-      />
-      {disabled && <path className="icon-slash" d="M4.5 4.5 19.5 19.5" />}
     </svg>
   );
 }
@@ -1928,6 +2431,134 @@ function CinematicStyleLayer({ mounted, particles }) {
   );
 }
 
+function NeonStyleLayer() {
+  return (
+    <div
+      data-testid="neon-style-layer"
+      className="neon-layer"
+      aria-hidden="true"
+    >
+      <div className="neon-orbit neon-orbit-a" />
+      <div className="neon-orbit neon-orbit-b" />
+      <div className="neon-fog" />
+      <div className="neon-tunnel" />
+      <div className="neon-burst" />
+      <div className="neon-light-wall neon-light-wall-left" />
+      <div className="neon-light-wall neon-light-wall-right" />
+      <div className="neon-city">
+        {[42, 68, 54, 86, 62, 74, 48, 92, 58, 78, 50, 66].map(
+          (height, index) => (
+            <span
+              key={index}
+              className="neon-building"
+              style={{
+                "--building-height": `${height}%`,
+                "--window-color":
+                  index % 3 === 0
+                    ? "rgba(34, 211, 238, 0.42)"
+                    : index % 3 === 1
+                      ? "rgba(236, 72, 153, 0.38)"
+                      : "rgba(168, 85, 247, 0.34)",
+                "--building-glow":
+                  index % 2 === 0
+                    ? "rgba(34, 211, 238, 0.2)"
+                    : "rgba(236, 72, 153, 0.18)",
+                "--sign-color":
+                  index % 2 === 0
+                    ? "rgba(34, 211, 238, 0.82)"
+                    : "rgba(236, 72, 153, 0.82)",
+                "--sign-speed": `${2.4 + (index % 4) * 0.36}s`,
+                "--sign-delay": `${index * -0.14}s`,
+              }}
+            />
+          ),
+        )}
+      </div>
+      <div className="neon-visor">
+        <span className="neon-visor-lens neon-visor-lens-left" />
+        <span className="neon-visor-bridge" />
+        <span className="neon-visor-lens neon-visor-lens-right" />
+      </div>
+      <div className="neon-grid" />
+      <div className="neon-horizon" />
+      {[
+        {
+          top: "12%",
+          left: "-18%",
+          width: "58%",
+          rotate: "18deg",
+          color: "rgba(34, 211, 238, 0.86)",
+          speed: "5.8s",
+          delay: "-0.8s",
+          start: "-10%",
+          end: "18%",
+        },
+        {
+          top: "22%",
+          left: "62%",
+          width: "54%",
+          rotate: "-22deg",
+          color: "rgba(236, 72, 153, 0.86)",
+          speed: "6.6s",
+          delay: "-2.4s",
+          start: "10%",
+          end: "-16%",
+        },
+        {
+          top: "36%",
+          left: "-10%",
+          width: "52%",
+          rotate: "-12deg",
+          color: "rgba(168, 85, 247, 0.78)",
+          speed: "7.2s",
+          delay: "-4s",
+          start: "-6%",
+          end: "14%",
+        },
+        {
+          top: "48%",
+          left: "60%",
+          width: "48%",
+          rotate: "14deg",
+          color: "rgba(45, 212, 191, 0.72)",
+          speed: "6.1s",
+          delay: "-3.2s",
+          start: "8%",
+          end: "-12%",
+        },
+      ].map((laser, index) => (
+        <span
+          key={index}
+          className="neon-laser"
+          style={{
+            "--laser-top": laser.top,
+            "--laser-left": laser.left,
+            "--laser-width": laser.width,
+            "--laser-rotate": laser.rotate,
+            "--laser-color": laser.color,
+            "--laser-speed": laser.speed,
+            "--laser-delay": laser.delay,
+            "--laser-x-start": laser.start,
+            "--laser-x-end": laser.end,
+          }}
+        />
+      ))}
+      <div className="neon-equalizer">
+        {Array.from({ length: 22 }).map((_, index) => (
+          <span
+            key={index}
+            style={{
+              "--bar-peak": 0.28 + ((index * 7) % 11) * 0.07,
+              "--bar-speed": `${1.4 + (index % 5) * 0.18}s`,
+              "--bar-delay": `${index * -0.08}s`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [mounted, setMounted] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -1935,7 +2566,21 @@ export default function App() {
   const [activeStyleId, setActiveStyleId] = useState(DEFAULT_STYLE_MODE);
   const [activeThemeId, setActiveThemeId] = useState(THEME_OPTIONS[0].id);
   const [activeVisualMode, setActiveVisualMode] = useState(DEFAULT_VISUAL_MODE);
-  const [activeQualityId, setActiveQualityId] = useState(DEFAULT_QUALITY_MODE);
+  const [activeFloatingDensityId, setActiveFloatingDensityId] = useState(
+    DEFAULT_FLOATING_DENSITY,
+  );
+  const [activeThreeRenderFpsId, setActiveThreeRenderFpsId] = useState(
+    DEFAULT_THREE_RENDER_FPS,
+  );
+  const [activeAudioReactionFpsId, setActiveAudioReactionFpsId] = useState(
+    DEFAULT_AUDIO_REACTION_FPS,
+  );
+  const [activeAudioDetectionModeId, setActiveAudioDetectionModeId] = useState(
+    () => defaultAudioDetectionModeForStyle(DEFAULT_STYLE_MODE),
+  );
+  const [activeThreePixelRatioId, setActiveThreePixelRatioId] = useState(
+    DEFAULT_THREE_PIXEL_RATIO,
+  );
   const [activeWaveBarCountId, setActiveWaveBarCountId] = useState(
     String(DEFAULT_WAVE_BAR_COUNT),
   );
@@ -1943,7 +2588,9 @@ export default function App() {
     DEFAULT_ORGANIZER_SIZE,
   );
   const [isDateVisible, setIsDateVisible] = useState(true);
-  const [isTitleEffectEnabled, setIsTitleEffectEnabled] = useState(true);
+  const [activeTitleEffectMode, setActiveTitleEffectMode] = useState(
+    DEFAULT_TITLE_EFFECT_MODE,
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const stageRef = useRef(null);
   const waveCanvasRef = useRef(null);
@@ -1951,10 +2598,11 @@ export default function App() {
   const waveLevelsRef = useRef(new Float32Array(MAX_WAVE_BAR_COUNT));
   const waveFrameRef = useRef(null);
   const soundEnergyRef = useRef(0);
-  const qualityRef = useRef(QUALITY_OPTIONS[0]);
+  const audioReactionFpsRef = useRef(AUDIO_REACTION_FPS_OPTIONS[0].value);
   const waveBarCountRef = useRef(DEFAULT_WAVE_BAR_COUNT);
   const animationRef = useRef(null);
   const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const sourceRef = useRef(null);
 
@@ -1971,11 +2619,58 @@ export default function App() {
     [activeStyleId],
   );
   const isCinematicStyle = activeStyle.id === "cinematic";
-  const activeQuality = useMemo(
+  const isNeonStyle = activeStyle.id === "neon";
+  const titleEffectClass =
+    activeTitleEffectMode === "off"
+      ? "is-effect-off"
+      : activeTitleEffectMode === "impact"
+        ? "is-effect-on is-effect-impact"
+        : "is-effect-on";
+  const handleStyleChange = useCallback((styleId) => {
+    setActiveStyleId(styleId);
+    setActiveAudioDetectionModeId(defaultAudioDetectionModeForStyle(styleId));
+  }, []);
+  const activeFloatingDensity = useMemo(
     () =>
-      QUALITY_OPTIONS.find((quality) => quality.id === activeQualityId) ||
-      QUALITY_OPTIONS[0],
-    [activeQualityId],
+      FLOATING_DENSITY_OPTIONS.find(
+        (option) => option.id === activeFloatingDensityId,
+      ) || FLOATING_DENSITY_OPTIONS[0],
+    [activeFloatingDensityId],
+  );
+  const activeThreeRenderFps = useMemo(
+    () =>
+      THREE_RENDER_FPS_OPTIONS.find(
+        (option) => option.id === activeThreeRenderFpsId,
+      ) || THREE_RENDER_FPS_OPTIONS[0],
+    [activeThreeRenderFpsId],
+  );
+  const activeAudioReactionFps = useMemo(
+    () =>
+      AUDIO_REACTION_FPS_OPTIONS.find(
+        (option) => option.id === activeAudioReactionFpsId,
+      ) || AUDIO_REACTION_FPS_OPTIONS[0],
+    [activeAudioReactionFpsId],
+  );
+  const activeAudioDetectionMode = useMemo(
+    () =>
+      AUDIO_DETECTION_OPTIONS.find(
+        (option) => option.id === activeAudioDetectionModeId,
+      ) || AUDIO_DETECTION_OPTIONS[0],
+    [activeAudioDetectionModeId],
+  );
+  const activeThreePixelRatio = useMemo(
+    () =>
+      THREE_PIXEL_RATIO_OPTIONS.find(
+        (option) => option.id === activeThreePixelRatioId,
+      ) || THREE_PIXEL_RATIO_OPTIONS[0],
+    [activeThreePixelRatioId],
+  );
+  const activeThreeQuality = useMemo(
+    () => ({
+      threeRenderFps: activeThreeRenderFps.value,
+      maxThreePixelRatio: activeThreePixelRatio.value,
+    }),
+    [activeThreePixelRatio.value, activeThreeRenderFps.value],
   );
   const activeWaveBarOption = useMemo(
     () =>
@@ -1993,8 +2688,8 @@ export default function App() {
   const floatingScores = useMemo(() => createFloatingScores(), []);
   const waves = useMemo(() => createWaveBars(), []);
   const visibleFloatingScores = useMemo(
-    () => floatingScores.slice(0, activeQuality.floatingScoreCount),
-    [activeQuality.floatingScoreCount, floatingScores],
+    () => floatingScores.slice(0, activeFloatingDensity.value),
+    [activeFloatingDensity.value, floatingScores],
   );
   const lightBeams = useMemo(() => createLightBeams(), []);
   const energyRings = useMemo(() => createEnergyRings(), []);
@@ -2031,6 +2726,8 @@ export default function App() {
       sourceRef.current = null;
     }
 
+    analyserRef.current = null;
+
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
@@ -2056,10 +2753,19 @@ export default function App() {
   }, [stopMicrophone]);
 
   useEffect(() => {
-    qualityRef.current = activeQuality;
-    waveTargetsRef.current.fill(0);
-    waveLevelsRef.current.fill(0);
-  }, [activeQuality]);
+    audioReactionFpsRef.current = activeAudioReactionFps.value;
+  }, [activeAudioReactionFps.value]);
+
+  useEffect(() => {
+    if (analyserRef.current) {
+      analyserRef.current.fftSize = activeAudioDetectionMode.fftSize;
+      analyserRef.current.smoothingTimeConstant =
+        activeAudioDetectionMode.smoothingTimeConstant;
+    }
+  }, [
+    activeAudioDetectionMode.fftSize,
+    activeAudioDetectionMode.smoothingTimeConstant,
+  ]);
 
   useEffect(() => {
     waveBarCountRef.current = activeWaveBarOption.value;
@@ -2212,28 +2918,33 @@ export default function App() {
         waveFrameRef.current = null;
       }
     };
-  }, [activeQuality, activeTheme, isCinematicStyle, isListening, waves]);
+  }, [activeTheme, isCinematicStyle, isListening, waves]);
 
-  const startMicrophone = async () => {
+  const startMicrophone = useCallback(async () => {
     if (isListening) {
       return;
     }
 
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setErrorMessage("此瀏覽器不支援麥克風互動，請改用新版 Chrome 或 Edge。");
-      return;
-    }
-
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("UNSUPPORTED_MICROPHONE");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const AudioContextClass =
         window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error("UNSUPPORTED_AUDIO_CONTEXT");
+      }
+
       const audioContext = new AudioContextClass();
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
 
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = AUDIO_ANALYSER_SMOOTHING;
+      analyser.fftSize = activeAudioDetectionMode.fftSize;
+      analyser.smoothingTimeConstant =
+        activeAudioDetectionMode.smoothingTimeConstant;
       source.connect(analyser);
 
       if (audioContext.state === "suspended") {
@@ -2241,11 +2952,17 @@ export default function App() {
       }
 
       audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
       mediaStreamRef.current = stream;
       sourceRef.current = source;
+      stream.getTracks().forEach((track) =>
+        track.addEventListener("ended", () => stopMicrophone(), {
+          once: true,
+        }),
+      );
 
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
+      let bufferLength = analyser.frequencyBinCount;
+      let dataArray = new Uint8Array(bufferLength);
       let lastAudioFrameTime = Number.NEGATIVE_INFINITY;
 
       setIsListening(true);
@@ -2253,12 +2970,15 @@ export default function App() {
 
       const renderFrame = (frameTime = 0) => {
         animationRef.current = requestAnimationFrame(renderFrame);
-        const currentQuality = qualityRef.current;
-        const minAudioFrameDuration = 1000 / currentQuality.audioReactionFps;
+        const minAudioFrameDuration = 1000 / audioReactionFpsRef.current;
         if (frameTime - lastAudioFrameTime < minAudioFrameDuration) {
           return;
         }
         lastAudioFrameTime = frameTime;
+        if (analyser.frequencyBinCount !== bufferLength) {
+          bufferLength = analyser.frequencyBinCount;
+          dataArray = new Uint8Array(bufferLength);
+        }
         analyser.getByteFrequencyData(dataArray);
 
         let total = 0;
@@ -2318,9 +3038,27 @@ export default function App() {
     } catch (error) {
       console.error("無法存取麥克風: ", error);
       stopMicrophone();
-      setErrorMessage("無法存取麥克風，請確認瀏覽器已允許權限。");
+      if (error?.message === "UNSUPPORTED_MICROPHONE") {
+        setErrorMessage(
+          "此瀏覽器不支援麥克風互動，請改用新版 Chrome 或 Edge。",
+        );
+      } else {
+        setErrorMessage("無法存取麥克風，請確認瀏覽器已允許權限。");
+      }
     }
-  };
+  }, [
+    activeAudioDetectionMode.fftSize,
+    activeAudioDetectionMode.smoothingTimeConstant,
+    isListening,
+    stopMicrophone,
+  ]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => startMicrophone(), 120);
+    return () => window.clearTimeout(timer);
+    // Intentional: only request the microphone once on initial page load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center">
@@ -2333,11 +3071,13 @@ export default function App() {
         <div
           ref={stageRef}
           data-testid="cinematic-stage"
-          className={`stage-shell absolute inset-0 overflow-hidden flex items-center justify-center font-sans select-none ${isListening ? "is-listening" : ""} ${isCinematicStyle ? "is-cinematic-style" : ""}`}
+          className={`stage-shell absolute inset-0 overflow-hidden flex items-center justify-center font-sans select-none ${isListening ? "is-listening" : ""} ${isCinematicStyle ? "is-cinematic-style" : ""} ${isNeonStyle ? "is-neon-style" : ""}`}
           style={activeTheme.vars}
         >
           {isCinematicStyle ? (
             <CinematicStyleLayer mounted={mounted} particles={particles} />
+          ) : isNeonStyle ? (
+            <NeonStyleLayer />
           ) : (
             <>
               <div className="absolute inset-x-0 top-0 h-[16%] bg-gradient-to-b from-yellow-100/14 via-yellow-500/10 to-transparent z-[1]" />
@@ -2413,13 +3153,13 @@ export default function App() {
                 side="left"
                 theme={activeTheme}
                 energyRef={soundEnergyRef}
-                quality={activeQuality}
+                quality={activeThreeQuality}
               />
               <TrophyScene
                 side="right"
                 theme={activeTheme}
                 energyRef={soundEnergyRef}
-                quality={activeQuality}
+                quality={activeThreeQuality}
               />
             </>
           )}
@@ -2435,18 +3175,18 @@ export default function App() {
                 side="left"
                 theme={activeTheme}
                 energyRef={soundEnergyRef}
-                quality={activeQuality}
+                quality={activeThreeQuality}
               />
               <MicrophoneScene
                 side="right"
                 theme={activeTheme}
                 energyRef={soundEnergyRef}
-                quality={activeQuality}
+                quality={activeThreeQuality}
               />
             </>
           )}
 
-          {!isCinematicStyle && (
+          {!isCinematicStyle && !isNeonStyle && (
             <>
               <div className="absolute inset-0 z-[1] pointer-events-none">
                 {lightBeams.map((beam) => (
@@ -2532,7 +3272,13 @@ export default function App() {
 
             <div className="mb-[2%] relative w-full flex flex-col items-center">
               <div
-                className={`absolute top-1/2 left-1/2 h-[4px] w-[120%] pointer-events-none mix-blend-screen opacity-70 blur-[1px] ${isCinematicStyle ? "cinematic-lens-flare" : "-translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,rgba(255,255,255,0.78)_0%,rgba(250,204,21,0.32)_40%,transparent_100%)] rotate-[-8deg]"}`}
+                className={`absolute top-1/2 left-1/2 h-[4px] w-[120%] pointer-events-none mix-blend-screen opacity-70 blur-[1px] ${
+                  isCinematicStyle
+                    ? "cinematic-lens-flare"
+                    : isNeonStyle
+                      ? "neon-lens-flare"
+                      : "-translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_50%_50%_at_50%_50%,rgba(255,255,255,0.78)_0%,rgba(250,204,21,0.32)_40%,transparent_100%)] rotate-[-8deg]"
+                }`}
               />
 
               <p className="text-yellow-200/90 tracking-[0.6em] mb-[2%] text-[1.5vw] 2xl:text-2xl font-light uppercase drop-shadow-md">
@@ -2543,7 +3289,7 @@ export default function App() {
               </h2>
               <h1
                 data-testid="main-title"
-                className={`gold-title ${isTitleEffectEnabled ? "is-effect-on" : "is-effect-off"} text-[10vw] font-black tracking-widest py-[1%] leading-none relative z-10`}
+                className={`${isNeonStyle ? "neon-title-sign" : "gold-title"} ${titleEffectClass} text-[10vw] font-black tracking-widest py-[1%] leading-none relative z-10`}
               >
                 南瀛歌唱比賽
               </h1>
@@ -2640,7 +3386,7 @@ export default function App() {
                         type="button"
                         aria-label={`切換主題為${style.name}`}
                         title={style.name}
-                        onClick={() => setActiveStyleId(style.id)}
+                        onClick={() => handleStyleChange(style.id)}
                         className={`style-mode-button ${
                           style.id === activeStyle.id ? "is-active" : ""
                         }`}
@@ -2704,23 +3450,133 @@ export default function App() {
 
               <div className="settings-section">
                 <div className="settings-row">
-                  <span className="settings-label">畫質</span>
+                  <span className="settings-label">飄浮</span>
                   <div
                     className="settings-button-row"
-                    data-testid="stage-quality-mode"
+                    data-testid="floating-density-mode"
                   >
-                    {QUALITY_OPTIONS.map((quality) => (
+                    {FLOATING_DENSITY_OPTIONS.map((option) => (
                       <button
-                        key={quality.id}
+                        key={option.id}
                         type="button"
-                        aria-label={`切換至${quality.name}`}
-                        title={quality.name}
-                        onClick={() => setActiveQualityId(quality.id)}
+                        aria-label={`切換漂浮音符數量為${option.name}`}
+                        title={`漂浮音符${option.name}`}
+                        onClick={() => setActiveFloatingDensityId(option.id)}
                         className={`quality-mode-button ${
-                          quality.id === activeQuality.id ? "is-active" : ""
+                          option.id === activeFloatingDensity.id
+                            ? "is-active"
+                            : ""
                         }`}
                       >
-                        {quality.shortName}
+                        {option.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
+                  <span className="settings-label">3D</span>
+                  <div
+                    className="settings-button-row"
+                    data-testid="three-render-fps-mode"
+                  >
+                    {THREE_RENDER_FPS_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        aria-label={`切換3D更新率為${option.name} FPS`}
+                        title={`3D ${option.name} FPS`}
+                        onClick={() => setActiveThreeRenderFpsId(option.id)}
+                        className={`quality-mode-button ${
+                          option.id === activeThreeRenderFps.id
+                            ? "is-active"
+                            : ""
+                        }`}
+                      >
+                        {option.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
+                  <span className="settings-label">聲音</span>
+                  <div
+                    className="settings-button-row"
+                    data-testid="audio-reaction-fps-mode"
+                  >
+                    {AUDIO_REACTION_FPS_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        aria-label={`切換聲音反應更新率為${option.name} FPS`}
+                        title={`聲音 ${option.name} FPS`}
+                        onClick={() => setActiveAudioReactionFpsId(option.id)}
+                        className={`quality-mode-button ${
+                          option.id === activeAudioReactionFps.id
+                            ? "is-active"
+                            : ""
+                        }`}
+                      >
+                        {option.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
+                  <span className="settings-label">偵測</span>
+                  <div
+                    className="settings-button-row"
+                    data-testid="audio-detection-mode"
+                  >
+                    {AUDIO_DETECTION_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        aria-label={`切換聲音偵測為${option.name}`}
+                        title={`聲音偵測${option.name}`}
+                        onClick={() => setActiveAudioDetectionModeId(option.id)}
+                        className={`quality-mode-button ${
+                          option.id === activeAudioDetectionMode.id
+                            ? "is-active"
+                            : ""
+                        }`}
+                      >
+                        {option.shortName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-row">
+                  <span className="settings-label">像素</span>
+                  <div
+                    className="settings-button-row"
+                    data-testid="three-pixel-ratio-mode"
+                  >
+                    {THREE_PIXEL_RATIO_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        aria-label={`切換3D像素倍率為${option.name}倍`}
+                        title={`3D像素倍率 ${option.name}x`}
+                        onClick={() => setActiveThreePixelRatioId(option.id)}
+                        className={`quality-mode-button ${
+                          option.id === activeThreePixelRatio.id
+                            ? "is-active"
+                            : ""
+                        }`}
+                      >
+                        {option.name}
                       </button>
                     ))}
                   </div>
@@ -2799,34 +3655,35 @@ export default function App() {
               <div className="settings-section">
                 <div className="settings-row">
                   <span className="settings-label">標題</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setIsTitleEffectEnabled((enabled) => !enabled)
-                    }
-                    aria-label={
-                      isTitleEffectEnabled ? "關閉標題效果" : "開啟標題效果"
-                    }
-                    title={
-                      isTitleEffectEnabled ? "關閉標題效果" : "開啟標題效果"
-                    }
-                    className={`control-icon-button ${
-                      isTitleEffectEnabled ? "is-active" : ""
-                    }`}
-                  >
-                    <SparkleIcon disabled={!isTitleEffectEnabled} />
-                  </button>
+                  <div className="settings-button-row">
+                    {TITLE_EFFECT_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`quality-mode-button ${
+                          activeTitleEffectMode === option.id ? "is-active" : ""
+                        }`}
+                        onClick={() => setActiveTitleEffectMode(option.id)}
+                        aria-label={`標題特效${option.name}`}
+                        title={`標題特效${option.name}`}
+                      >
+                        {option.shortName}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               <div className="settings-section">
                 <div className="settings-row">
-                  <span className="settings-label">聲音</span>
+                  <span className="settings-label">麥克風</span>
                   <button
                     type="button"
                     onClick={isListening ? stopMicrophone : startMicrophone}
-                    aria-label={isListening ? "停止聲音互動" : "啟用聲音互動"}
-                    title={isListening ? "停止聲音互動" : "啟用聲音互動"}
+                    aria-label={
+                      isListening ? "停止麥克風收音" : "開啟麥克風收音"
+                    }
+                    title={isListening ? "停止麥克風收音" : "開啟麥克風收音"}
                     className={`microphone-button control-icon-button ${
                       isListening ? "is-active" : ""
                     }`}
