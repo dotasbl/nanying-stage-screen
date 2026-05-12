@@ -23,7 +23,7 @@ const DEFAULT_THREE_RENDER_FPS = "low";
 const DEFAULT_AUDIO_REACTION_FPS = "low";
 const DEFAULT_THREE_PIXEL_RATIO = "low";
 const DEFAULT_TITLE_EFFECT_MODE = "standard";
-const APP_VERSION_LABEL = "v2026.05.12.17";
+const APP_VERSION_LABEL = "v2026.05.12.19";
 const ENERGY_STYLE_UPDATE_EPSILON = 0.006;
 const IDLE_WAVE_DURATION_SCALE = 2.35;
 const IDLE_WAVE_SMOOTHING = 0.07;
@@ -333,6 +333,7 @@ const customStyles = `
   }
 
   .stage-shell {
+    container-type: inline-size;
     --sound-energy: 0;
     --bass-energy: 0;
     --title-energy: 0;
@@ -1310,12 +1311,35 @@ const customStyles = `
     animation: title-rise 980ms cubic-bezier(.2,.84,.25,1) both;
   }
 
+  .stage-title-kicker {
+    font-size: 1.5vw;
+    font-size: 1.5cqw;
+  }
+
+  .stage-title-prefix {
+    font-size: 3.5vw;
+    font-size: 3.5cqw;
+  }
+
+  .stage-main-title {
+    font-size: 10vw;
+    font-size: 10cqw;
+  }
+
+  .title-center-diamond {
+    width: 0.8vw;
+    height: 0.8vw;
+    width: 0.8cqw;
+    height: 0.8cqw;
+  }
+
   .neon-title-sign {
     display: inline-block;
     isolation: isolate;
     color: #fff;
     -webkit-text-fill-color: #fff;
     -webkit-text-stroke: clamp(0.35px, 0.035vw, 0.9px) rgba(255, 255, 255, 0.92);
+    -webkit-text-stroke: clamp(0.35px, 0.035cqw, 0.9px) rgba(255, 255, 255, 0.92);
     font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
     text-shadow:
       0 0 3px rgba(255, 255, 255, 1),
@@ -1425,6 +1449,7 @@ const customStyles = `
     position: relative;
     width: 100%;
     height: clamp(104px, 13vw, 250px);
+    height: clamp(104px, 13cqw, 250px);
     margin-top: 1%;
   }
 
@@ -1433,7 +1458,27 @@ const customStyles = `
     top: 0;
     left: 50%;
     height: clamp(34px, 3.8vw, 78px);
+    height: clamp(34px, 3.8cqw, 78px);
     transform: translateX(-50%);
+  }
+
+  .date-pill-frame {
+    gap: 1.5vw;
+    gap: 1.5cqw;
+    padding-left: 3vw;
+    padding-right: 3vw;
+    padding-left: 3cqw;
+    padding-right: 3cqw;
+  }
+
+  .date-pill-label {
+    font-size: 0.9vw;
+    font-size: 0.9cqw;
+  }
+
+  .date-pill-value {
+    font-size: 1.6vw;
+    font-size: 1.6cqw;
   }
 
   .title-rise {
@@ -1483,6 +1528,7 @@ const customStyles = `
     left: 0;
     right: 0;
     bottom: clamp(8px, 0.9vw, 22px);
+    bottom: clamp(8px, 0.9cqw, 22px);
     width: 100%;
     min-height: 0;
     display: flex;
@@ -1497,8 +1543,10 @@ const customStyles = `
     align-items: center;
     justify-content: center;
     gap: clamp(0.9vw, 5vw, calc(5vw / var(--organizer-scale)));
+    gap: clamp(0.9cqw, 5cqw, calc(5cqw / var(--organizer-scale)));
     color: rgb(229, 231, 235);
     font-size: 1.2vw;
+    font-size: 1.2cqw;
     font-weight: 300;
     letter-spacing: 0.1em;
     transform: scale(var(--organizer-scale));
@@ -1512,13 +1560,16 @@ const customStyles = `
     flex-direction: column;
     align-items: center;
     gap: clamp(3px, 0.34vw, 8px);
+    gap: clamp(3px, 0.34cqw, 8px);
     min-width: 0;
     max-width: 31vw;
+    max-width: 31cqw;
   }
 
   .organizer-label {
     color: rgba(var(--accent-rgb), 0.9);
     font-size: 1vw;
+    font-size: 1cqw;
     line-height: 1;
     white-space: nowrap;
   }
@@ -1535,6 +1586,7 @@ const customStyles = `
   .organizer-divider {
     width: 2px;
     height: clamp(26px, 2.5vw, 72px);
+    height: clamp(26px, 2.5cqw, 72px);
     background: rgba(var(--accent-rgb), 0.3);
     flex: 0 0 auto;
   }
@@ -3311,22 +3363,22 @@ export default function App() {
                 }`}
               />
 
-              <p className="text-yellow-200/90 tracking-[0.6em] mb-[2%] text-[1.5vw] 2xl:text-2xl font-light uppercase drop-shadow-md">
+              <p className="stage-title-kicker text-yellow-200/90 tracking-[0.6em] mb-[2%] font-light uppercase drop-shadow-md">
                 115 Year / Singing Competition
               </p>
-              <h2 className="text-[3.5vw] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-yellow-400 to-yellow-100 mb-[1%] tracking-[0.25em] gold-glow leading-none relative z-10">
+              <h2 className="stage-title-prefix font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-yellow-400 to-yellow-100 mb-[1%] tracking-[0.25em] gold-glow leading-none relative z-10">
                 115年臺南市議長盃
               </h2>
               <h1
                 data-testid="main-title"
-                className={`${isNeonStyle ? "neon-title-sign" : "gold-title"} ${titleEffectClass} text-[10vw] font-black tracking-widest py-[1%] leading-none relative z-10`}
+                className={`${isNeonStyle ? "neon-title-sign" : "gold-title"} ${titleEffectClass} stage-main-title font-black tracking-widest py-[1%] leading-none relative z-10`}
               >
                 南瀛歌唱比賽
               </h1>
             </div>
 
             <div className="w-[70%] h-[2px] bg-gradient-to-r from-transparent via-yellow-500/80 to-transparent my-[1.5%] relative">
-              <div className="absolute left-1/2 top-1/2 h-[0.8vw] w-[0.8vw] -translate-x-1/2 -translate-y-1/2 rotate-45 border border-yellow-100/80 bg-yellow-300/70 shadow-[0_0_24px_rgba(250,204,21,0.92)]" />
+              <div className="title-center-diamond absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-yellow-100/80 bg-yellow-300/70 shadow-[0_0_24px_rgba(250,204,21,0.92)]" />
             </div>
 
             <div className="lower-info-zone">
@@ -3336,11 +3388,11 @@ export default function App() {
                   className="date-pill-content inline-flex items-center justify-center"
                 >
                   <div className="absolute inset-0 bg-yellow-500/30 blur-[20px] rounded-full" />
-                  <div className="relative h-full px-[3vw] border border-yellow-400/40 rounded-full bg-black/80 backdrop-blur-md flex items-center justify-center gap-[1.5vw] shadow-[inset_0_0_15px_rgba(234,179,8,0.15)]">
-                    <span className="text-yellow-400/70 tracking-[0.4em] text-[0.9vw] uppercase whitespace-nowrap">
+                  <div className="date-pill-frame relative h-full border border-yellow-400/40 rounded-full bg-black/80 backdrop-blur-md flex items-center justify-center shadow-[inset_0_0_15px_rgba(234,179,8,0.15)]">
+                    <span className="date-pill-label text-yellow-400/70 tracking-[0.4em] uppercase whitespace-nowrap">
                       比賽日期
                     </span>
-                    <span className="text-[1.6vw] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 tracking-[0.1em] whitespace-nowrap">
+                    <span className="date-pill-value font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 tracking-[0.1em] whitespace-nowrap">
                       115年5月12日
                     </span>
                   </div>
