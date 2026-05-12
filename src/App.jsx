@@ -23,8 +23,10 @@ const DEFAULT_THREE_RENDER_FPS = "low";
 const DEFAULT_AUDIO_REACTION_FPS = "low";
 const DEFAULT_THREE_PIXEL_RATIO = "low";
 const DEFAULT_TITLE_EFFECT_MODE = "standard";
-const APP_VERSION_LABEL = "v2026.05.12.16";
+const APP_VERSION_LABEL = "v2026.05.12.17";
 const ENERGY_STYLE_UPDATE_EPSILON = 0.006;
+const IDLE_WAVE_DURATION_SCALE = 2.35;
+const IDLE_WAVE_SMOOTHING = 0.07;
 const FLOATING_DENSITY_OPTIONS = [
   { id: "low", name: "22", value: 22 },
   { id: "medium", name: "34", value: 34 },
@@ -2903,13 +2905,16 @@ export default function App() {
       for (let index = 0; index < count; index += 1) {
         const pattern = waves[index];
         const phase =
-          ((time + pattern.delayValue) / pattern.durationValue) * Math.PI * 2;
+          ((time + pattern.delayValue) /
+            (pattern.durationValue * IDLE_WAVE_DURATION_SCALE)) *
+          Math.PI *
+          2;
         const idleTarget =
           0.16 + Math.pow((Math.sin(phase) + 1) / 2, 1.35) * 0.84;
         const target = isListening ? targets[index] : idleTarget;
         const difference = target - levels[index];
         if (!isListening) {
-          levels[index] += difference * 0.12;
+          levels[index] += difference * IDLE_WAVE_SMOOTHING;
         } else if (difference > 0) {
           levels[index] += difference * activePreset.attackSmoothing;
         } else {
