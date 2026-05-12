@@ -45,7 +45,15 @@ export const smoothEnergyValue = (
   const safeMax = Math.max(0, Number(max) || 0);
   const safePrevious = clamp(Number(previous) || 0, 0, safeMax);
   const safeTarget = clamp(Number(target) || 0, 0, safeMax);
-  const smoothing = clamp(safeTarget > safePrevious ? attack : release, 0, 1);
+  const attackNumber = Number(attack);
+  const releaseNumber = Number(release);
+  const safeAttack = Number.isFinite(attackNumber) ? attackNumber : 0.25;
+  const safeRelease = Number.isFinite(releaseNumber) ? releaseNumber : 0.1;
+  const smoothing = clamp(
+    safeTarget > safePrevious ? safeAttack : safeRelease,
+    0,
+    1,
+  );
   const next = safePrevious + (safeTarget - safePrevious) * smoothing;
 
   return Math.round(next * 1000) / 1000;

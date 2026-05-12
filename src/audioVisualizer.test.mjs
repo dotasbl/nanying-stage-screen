@@ -132,3 +132,35 @@ test("energy smoothing dampens sudden title glow changes", () => {
   assert.equal(rising, 0.33);
   assert.equal(falling, 0.648);
 });
+
+test("energy smoothing ignores invalid attack and release values", () => {
+  const rising = smoothEnergyValue(0.2, 1, {
+    attack: Number.NaN,
+    release: 0.1,
+    max: 0.72,
+  });
+  const falling = smoothEnergyValue(0.72, 0, {
+    attack: 0.25,
+    release: "invalid",
+    max: 0.72,
+  });
+
+  assert.equal(rising, 0.33);
+  assert.equal(falling, 0.648);
+});
+
+test("energy smoothing preserves explicit zero attack and release values", () => {
+  const frozenRise = smoothEnergyValue(0.2, 1, {
+    attack: 0,
+    release: 0.1,
+    max: 0.72,
+  });
+  const frozenFall = smoothEnergyValue(0.72, 0, {
+    attack: 0.25,
+    release: 0,
+    max: 0.72,
+  });
+
+  assert.equal(frozenRise, 0.2);
+  assert.equal(frozenFall, 0.72);
+});
