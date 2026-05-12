@@ -11,6 +11,7 @@ import {
   applyAudioDetectionPreset,
   createFrequencyBarPlan,
   mapFrequencyDataToBars,
+  smoothEnergyValue,
 } from "./audioVisualizer.js";
 
 const NOTE_SYMBOLS = ["♪", "♫", "♬", "✦", "婦女", "南瀛"];
@@ -23,10 +24,15 @@ const DEFAULT_THREE_RENDER_FPS = "low";
 const DEFAULT_AUDIO_REACTION_FPS = "low";
 const DEFAULT_THREE_PIXEL_RATIO = "low";
 const DEFAULT_TITLE_EFFECT_MODE = "standard";
-const APP_VERSION_LABEL = "v2026.05.12.30";
+const APP_VERSION_LABEL = "v2026.05.12.31";
 const ENERGY_STYLE_UPDATE_EPSILON = 0.006;
 const IDLE_WAVE_DURATION_SCALE = 2.35;
 const IDLE_WAVE_SMOOTHING = 0.07;
+const TITLE_ENERGY_SMOOTHING = {
+  attack: 0.24,
+  release: 0.1,
+  max: 0.72,
+};
 const FLOATING_DENSITY_OPTIONS = [
   { id: "low", name: "22", value: 22 },
   { id: "medium", name: "34", value: 34 },
@@ -2646,6 +2652,7 @@ export default function App() {
   const waveLevelsRef = useRef(new Float32Array(MAX_WAVE_BAR_COUNT));
   const waveFrameRef = useRef(null);
   const soundEnergyRef = useRef(0);
+  const titleEnergyRef = useRef(0);
   const stageEnergyStyleRef = useRef({
     bass: Number.NaN,
     sound: Number.NaN,
@@ -2793,7 +2800,19 @@ export default function App() {
 
   const setTitleEnergy = useCallback(
     (energy, force = false) => {
-      setStageEnergyProperty("title", "--title-energy", energy, force);
+      const nextEnergy = force
+        ? 0
+        : smoothEnergyValue(
+            titleEnergyRef.current,
+            energy,
+            TITLE_ENERGY_SMOOTHING,
+          );
+      titleEnergyRef.current = setStageEnergyProperty(
+        "title",
+        "--title-energy",
+        nextEnergy,
+        force,
+      );
     },
     [setStageEnergyProperty],
   );

@@ -6,6 +6,7 @@ import {
   applyAudioDetectionPreset,
   createFrequencyBarPlan,
   mapFrequencyDataToBars,
+  smoothEnergyValue,
 } from "./audioVisualizer.js";
 
 test("audio detection presets configure analyser core parameters", () => {
@@ -114,4 +115,20 @@ test("frequency bars can reuse an output buffer", () => {
   assert.equal(result.bars, outputBars);
   assert.equal(result.bars.length, 16);
   assert.ok(outputBars.some((value) => value > 0));
+});
+
+test("energy smoothing dampens sudden title glow changes", () => {
+  const rising = smoothEnergyValue(0.2, 1, {
+    attack: 0.25,
+    release: 0.1,
+    max: 0.72,
+  });
+  const falling = smoothEnergyValue(0.72, 0, {
+    attack: 0.25,
+    release: 0.1,
+    max: 0.72,
+  });
+
+  assert.equal(rising, 0.33);
+  assert.equal(falling, 0.648);
 });

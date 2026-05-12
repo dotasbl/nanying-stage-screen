@@ -37,6 +37,20 @@ export const AUDIO_DETECTION_OPTIONS = [
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+export const smoothEnergyValue = (
+  previous,
+  target,
+  { attack = 0.25, release = 0.1, max = 1 } = {},
+) => {
+  const safeMax = Math.max(0, Number(max) || 0);
+  const safePrevious = clamp(Number(previous) || 0, 0, safeMax);
+  const safeTarget = clamp(Number(target) || 0, 0, safeMax);
+  const smoothing = clamp(safeTarget > safePrevious ? attack : release, 0, 1);
+  const next = safePrevious + (safeTarget - safePrevious) * smoothing;
+
+  return Math.round(next * 1000) / 1000;
+};
+
 const allocateRangeCounts = (barCount) => {
   const safeBarCount = Math.max(1, Math.round(Number(barCount) || 1));
   if (safeBarCount < AUDIO_FREQUENCY_RANGES.length) {
