@@ -23,7 +23,7 @@ const DEFAULT_THREE_RENDER_FPS = "low";
 const DEFAULT_AUDIO_REACTION_FPS = "low";
 const DEFAULT_THREE_PIXEL_RATIO = "low";
 const DEFAULT_TITLE_EFFECT_MODE = "standard";
-const APP_VERSION_LABEL = "v2026.05.12.20";
+const APP_VERSION_LABEL = "v2026.05.12.28";
 const ENERGY_STYLE_UPDATE_EPSILON = 0.006;
 const IDLE_WAVE_DURATION_SCALE = 2.35;
 const IDLE_WAVE_SMOOTHING = 0.07;
@@ -186,6 +186,15 @@ const customStyles = `
   @keyframes beam-sweep {
     0%, 100% { opacity: 0.22; transform: translateX(-8%) rotate(var(--beam-rotate)) scaleY(0.92); }
     50% { opacity: 0.78; transform: translateX(8%) rotate(calc(var(--beam-rotate) * -0.75)) scaleY(1.08); }
+  }
+
+  @keyframes stage-spotlight-pan {
+    0%, 100% {
+      transform: translateX(var(--spotlight-x)) rotate(var(--spotlight-angle)) scaleX(0.88);
+    }
+    50% {
+      transform: translateX(calc(var(--spotlight-x) * -0.12)) rotate(calc(var(--spotlight-angle) + var(--spotlight-swing))) scaleX(1.02);
+    }
   }
 
   @keyframes ring-pulse {
@@ -451,11 +460,11 @@ const customStyles = `
   }
 
   .reactive-center-glow {
-    opacity: calc(0.22 + var(--bass-energy) * 0.65);
-    transform: translate(-50%, -50%) scale(calc(0.92 + var(--bass-energy) * 0.42));
-    filter: blur(calc(58px + var(--bass-energy) * 46px));
+    opacity: calc(0.24 + var(--bass-energy) * 0.86);
+    transform: translate(-50%, -50%) scale(calc(1.02 + var(--bass-energy) * 0.46), calc(0.96 + var(--bass-energy) * 0.24));
+    filter: blur(calc(56px + var(--bass-energy) * 58px));
     background:
-      radial-gradient(circle at 50% 50%, rgba(var(--accent-hot-rgb), 0.64), rgba(var(--accent-rgb), 0.34) 30%, rgba(var(--accent-deep-rgb), 0.12) 58%, transparent 72%);
+      radial-gradient(ellipse at 50% 50%, rgba(var(--accent-hot-rgb), 0.76), rgba(var(--accent-rgb), 0.46) 30%, rgba(var(--accent-deep-rgb), 0.18) 64%, transparent 80%);
     mix-blend-mode: screen;
     pointer-events: none;
     transition: opacity 80ms linear, transform 80ms linear, filter 80ms linear;
@@ -1267,14 +1276,42 @@ const customStyles = `
     background: linear-gradient(
       180deg,
       transparent 0%,
-      rgba(var(--accent-hot-rgb), 0.18) 12%,
-      rgba(var(--accent-rgb), 0.34) 42%,
-      rgba(var(--beam-shadow-rgb), 0.13) 72%,
+      rgba(var(--accent-hot-rgb), 0.13) 12%,
+      rgba(var(--accent-rgb), 0.22) 42%,
+      rgba(var(--beam-shadow-rgb), 0.09) 72%,
       transparent 100%
     );
-    clip-path: polygon(43% 0%, 57% 0%, 100% 100%, 0% 100%);
-    filter: blur(1px);
+    clip-path: polygon(45% 0%, 55% 0%, 92% 100%, 8% 100%);
+    filter: blur(1.4px);
     mix-blend-mode: screen;
+  }
+
+  .stage-spotlight {
+    animation: stage-spotlight-pan var(--spotlight-speed) ease-in-out infinite;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(var(--accent-hot-rgb), 0.34), rgba(var(--accent-rgb), 0.1) 20%, transparent 48%),
+      linear-gradient(180deg, rgba(var(--accent-hot-rgb), 0.15) 0%, rgba(var(--accent-rgb), 0.1) 36%, rgba(var(--beam-shadow-rgb), 0.045) 68%, transparent 100%);
+    clip-path: polygon(48% 0%, 52% 0%, 92% 100%, 8% 100%);
+    filter: blur(3.2px);
+    mix-blend-mode: screen;
+    opacity: calc(0.18 + var(--bass-energy) * 0.18);
+    pointer-events: none;
+    transform-origin: 50% 0%;
+  }
+
+  .stage-spotlight-left {
+    --spotlight-angle: -26deg;
+    --spotlight-swing: 4deg;
+    --spotlight-speed: 7.8s;
+    --spotlight-x: 1%;
+  }
+
+  .stage-spotlight-right {
+    --spotlight-angle: 26deg;
+    --spotlight-swing: -4deg;
+    --spotlight-speed: 8.6s;
+    --spotlight-x: -1%;
+    animation-delay: -3.1s;
   }
 
   .energy-ring {
@@ -3171,6 +3208,8 @@ export default function App() {
               <div className="absolute inset-x-[6%] top-[7%] h-[1px] bg-gradient-to-r from-transparent via-yellow-200/70 to-transparent z-[2]" />
               <div className="absolute left-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
               <div className="absolute right-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
+              <div className="stage-spotlight stage-spotlight-left absolute left-[-24%] top-[-7%] z-[2] h-[92%] w-[50%]" />
+              <div className="stage-spotlight stage-spotlight-right absolute right-[-24%] top-[-7%] z-[2] h-[92%] w-[50%]" />
 
               <div
                 data-testid="ambient-breathe"
@@ -3232,7 +3271,7 @@ export default function App() {
 
           <div
             data-testid="reactive-center-glow"
-            className="reactive-center-glow absolute left-1/2 top-[45%] z-[2] h-[34vw] w-[56vw] rounded-full"
+            className={`reactive-center-glow absolute left-1/2 z-[2] rounded-full ${isCinematicStyle || isNeonStyle ? "top-[45%] h-[34vw] w-[56vw]" : "top-[48%] h-[30%] w-[118%]"}`}
           />
           {activeVisualMode === "trophy" && (
             <>
