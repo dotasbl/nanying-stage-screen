@@ -23,7 +23,7 @@ const DEFAULT_THREE_RENDER_FPS = "low";
 const DEFAULT_AUDIO_REACTION_FPS = "low";
 const DEFAULT_THREE_PIXEL_RATIO = "low";
 const DEFAULT_TITLE_EFFECT_MODE = "standard";
-const APP_VERSION_LABEL = "v2026.05.12.19";
+const APP_VERSION_LABEL = "v2026.05.12.20";
 const ENERGY_STYLE_UPDATE_EPSILON = 0.006;
 const IDLE_WAVE_DURATION_SCALE = 2.35;
 const IDLE_WAVE_SMOOTHING = 0.07;
@@ -1457,6 +1457,8 @@ const customStyles = `
     position: absolute;
     top: 0;
     left: 50%;
+    width: max-content;
+    max-width: 92%;
     height: clamp(34px, 3.8vw, 78px);
     height: clamp(34px, 3.8cqw, 78px);
     transform: translateX(-50%);
@@ -1538,12 +1540,14 @@ const customStyles = `
   }
 
   .organizer-content {
-    display: flex;
-    flex-flow: row wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2px minmax(0, 1fr) 2px minmax(0, 1fr);
     align-items: center;
-    justify-content: center;
+    justify-items: center;
     gap: clamp(0.9vw, 5vw, calc(5vw / var(--organizer-scale)));
     gap: clamp(0.9cqw, 5cqw, calc(5cqw / var(--organizer-scale)));
+    width: calc(88vw / var(--organizer-scale));
+    width: calc(88cqw / var(--organizer-scale));
     color: rgb(229, 231, 235);
     font-size: 1.2vw;
     font-size: 1.2cqw;
@@ -1561,6 +1565,7 @@ const customStyles = `
     align-items: center;
     gap: clamp(3px, 0.34vw, 8px);
     gap: clamp(3px, 0.34cqw, 8px);
+    width: 100%;
     min-width: 0;
     max-width: 31vw;
     max-width: 31cqw;
