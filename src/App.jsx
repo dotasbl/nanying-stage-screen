@@ -23,7 +23,7 @@ const DEFAULT_THREE_RENDER_FPS = "low";
 const DEFAULT_AUDIO_REACTION_FPS = "low";
 const DEFAULT_THREE_PIXEL_RATIO = "low";
 const DEFAULT_TITLE_EFFECT_MODE = "standard";
-const APP_VERSION_LABEL = "v2026.05.12.29";
+const APP_VERSION_LABEL = "v2026.05.12.30";
 const ENERGY_STYLE_UPDATE_EPSILON = 0.006;
 const IDLE_WAVE_DURATION_SCALE = 2.35;
 const IDLE_WAVE_SMOOTHING = 0.07;
@@ -1267,35 +1267,14 @@ const customStyles = `
     background: linear-gradient(
       180deg,
       transparent 0%,
-      rgba(var(--accent-hot-rgb), 0.13) 12%,
-      rgba(var(--accent-rgb), 0.22) 42%,
-      rgba(var(--beam-shadow-rgb), 0.09) 72%,
+      rgba(var(--accent-hot-rgb), 0.18) 12%,
+      rgba(var(--accent-rgb), 0.34) 42%,
+      rgba(var(--beam-shadow-rgb), 0.13) 72%,
       transparent 100%
     );
-    clip-path: polygon(45% 0%, 55% 0%, 92% 100%, 8% 100%);
-    filter: blur(1.4px);
+    clip-path: polygon(43% 0%, 57% 0%, 100% 100%, 0% 100%);
+    filter: blur(1px);
     mix-blend-mode: screen;
-  }
-
-  .stage-spotlight {
-    background:
-      radial-gradient(ellipse at 50% 0%, rgba(var(--accent-hot-rgb), 0.34), rgba(var(--accent-rgb), 0.1) 20%, transparent 48%),
-      linear-gradient(180deg, rgba(var(--accent-hot-rgb), 0.15) 0%, rgba(var(--accent-rgb), 0.1) 36%, rgba(var(--beam-shadow-rgb), 0.045) 68%, transparent 100%);
-    clip-path: polygon(48% 0%, 52% 0%, 92% 100%, 8% 100%);
-    filter: blur(3.2px);
-    mix-blend-mode: screen;
-    opacity: 0.24;
-    pointer-events: none;
-    transform: rotate(var(--spotlight-angle)) scaleX(0.94);
-    transform-origin: 50% 0%;
-  }
-
-  .stage-spotlight-left {
-    --spotlight-angle: -26deg;
-  }
-
-  .stage-spotlight-right {
-    --spotlight-angle: 26deg;
   }
 
   .energy-ring {
@@ -3192,8 +3171,6 @@ export default function App() {
               <div className="absolute inset-x-[6%] top-[7%] h-[1px] bg-gradient-to-r from-transparent via-yellow-200/70 to-transparent z-[2]" />
               <div className="absolute left-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
               <div className="absolute right-[8%] top-[8%] h-[76%] w-[1px] bg-gradient-to-b from-transparent via-yellow-300/35 to-transparent z-[2]" />
-              <div className="stage-spotlight stage-spotlight-left absolute left-[-24%] top-[-7%] z-[2] h-[92%] w-[50%]" />
-              <div className="stage-spotlight stage-spotlight-right absolute right-[-24%] top-[-7%] z-[2] h-[92%] w-[50%]" />
 
               <div
                 data-testid="ambient-breathe"
